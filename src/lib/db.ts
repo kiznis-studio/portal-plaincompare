@@ -306,7 +306,7 @@ export async function getStateComparisonData(env: Bindings, state: State): Promi
     getStateCost(env.DB_COST, state.abbr),
     getStateRent(env.DB_RENT, state.abbr),
     getStateCrime(env.DB_CRIME, state.abbr),
-    getStateWages(env.DB_WAGE, state.abbr),
+    getStateWages(env.DB_WAGE, state.slug),
     getStateSchools(env.DB_SCHOOLS, state.abbr),
     getStateChildcare(env.DB_CHILDCARE, state.abbr),
     getStateEnviro(env.DB_ENVIRO, state.abbr),

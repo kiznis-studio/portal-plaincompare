@@ -10,7 +10,7 @@ const states = await getAllStates(env.DB);
 // Fetch wages for all states in parallel
 const wageResults = await Promise.all(
   states.map(async s => {
-    const wages = await getStateWages(env.DB_WAGE, s.abbr);
+    const wages = await getStateWages(env.DB_WAGE, s.slug);
     return { ...s, wages };
   })
 );
