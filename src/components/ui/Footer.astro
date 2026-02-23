@@ -1,0 +1,49 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-[var(--color-border)]">
+  <div class="max-w-6xl mx-auto px-4 py-16 md:py-20">
+    <div class="grid grid-cols-12 gap-8">
+      <div class="col-span-12 md:col-span-4">
+        <a href="/" class="font-bold text-lg text-[var(--color-primary)]">PlainCompare</a>
+        <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
+          Compare U.S. cities and states across cost of living, rent, crime, wages, schools, childcare, and environment — all from official government data.
+        </p>
+      </div>
+
+      <div class="col-span-6 md:col-span-2">
+        <h3 class="font-semibold text-sm text-[var(--color-text)] mb-3">Quick Links</h3>
+        <ul class="space-y-2 text-sm text-[var(--color-text-secondary)]">
+          <li><a href="/" class="hover:text-[var(--color-primary)]">Home</a></li>
+          <li><a href="/metros" class="hover:text-[var(--color-primary)]">Metros</a></li>
+          <li><a href="/states" class="hover:text-[var(--color-primary)]">States</a></li>
+          <li><a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a></li>
+          <li><a href="/about" class="hover:text-[var(--color-primary)]">About</a></li>
+        </ul>
+      </div>
+
+      <div class="col-span-6 md:col-span-2">
+        <h3 class="font-semibold text-sm text-[var(--color-text)] mb-3">Legal</h3>
+        <ul class="space-y-2 text-sm text-[var(--color-text-secondary)]">
+          <li><a href="/privacy" class="hover:text-[var(--color-primary)]">Privacy Policy</a></li>
+          <li><a href="/terms" class="hover:text-[var(--color-primary)]">Terms of Use</a></li>
+        </ul>
+      </div>
+
+      <div class="col-span-12 md:col-span-4">
+        <h3 class="font-semibold text-sm text-[var(--color-text)] mb-3">Our Network</h3>
+        <ul class="space-y-2 text-sm text-[var(--color-text-secondary)]">
+          <li><a href="https://plaincost.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">PlainCost — Cost of Living</a></li>
+          <li><a href="https://plainrent.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">PlainRent — Fair Market Rents</a></li>
+          <li><a href="https://wagedex.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">WageDex — Salary & Wage Data</a></li>
+          <li><a href="https://plaincrime.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">PlainCrime — US Crime Statistics</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 pt-8 border-t border-[var(--color-border)] text-center text-sm text-[var(--color-text-secondary)]">
+      <p>&copy; {year} PlainCompare. Data from BEA, HUD, FBI, BLS, NCES, DOL, and EPA. Not affiliated with the U.S. Government.</p>
+    </div>
+  </div>
+</footer>

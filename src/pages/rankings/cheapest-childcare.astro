@@ -1,0 +1,53 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllStateChildcare } from '../../lib/db';
+import { formatMoney } from '../../lib/format';
+
+const env = Astro.locals.runtime.env;
+const states = await getAllStateChildcare(env.DB_CHILDCARE);
+const sorted = states
+  .filter(s => s.center_infant)
+  .sort((a, b) => (a.center_infant ?? 999999) - (b.center_infant ?? 999999));
+---
+
+<Base
+  title="Cheapest Childcare by State"
+  description="U.S. states ranked by average annual infant center-based childcare cost."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Rankings', href: '/rankings' }, { name: 'Cheapest Childcare' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Cheapest Childcare States</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Ranked by average annual infant center-based childcare cost. Lower is cheaper.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium w-12">#</th>
+            <th class="pb-2 font-medium">State</th>
+            <th class="pb-2 font-medium text-right">Infant (Center)</th>
+            <th class="pb-2 font-medium text-right">Toddler (Center)</th>
+            <th class="pb-2 font-medium text-right">Preschool (Center)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((s, i) => (
+            <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
+              <td class="py-2 text-[var(--color-text-secondary)]">{i + 1}</td>
+              <td class="py-2 font-medium">{s.name}</td>
+              <td class="py-2 text-right">{formatMoney(s.center_infant)}/yr</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{formatMoney(s.center_toddler)}/yr</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{formatMoney(s.center_preschool)}/yr</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-xs text-[var(--color-text-secondary)]">Source: DOL Women's Bureau, National Database of Childcare Prices.</p>
+  </section>
+</Base>

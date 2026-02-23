@@ -1,0 +1,61 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllStates } from '../../lib/db';
+import { getStateWages } from '../../lib/db';
+import { formatMoney, formatNumber } from '../../lib/format';
+
+const env = Astro.locals.runtime.env;
+const states = await getAllStates(env.DB);
+
+// Fetch wages for all states in parallel
+const wageResults = await Promise.all(
+  states.map(async s => {
+    const wages = await getStateWages(env.DB_WAGE, s.abbr);
+    return { ...s, wages };
+  })
+);
+
+const sorted = wageResults
+  .filter(s => s.wages?.median_salary)
+  .sort((a, b) => (b.wages!.median_salary ?? 0) - (a.wages!.median_salary ?? 0));
+---
+
+<Base
+  title="Highest-Paying States by Median Salary"
+  description="U.S. states ranked by average median salary across all occupations from BLS data."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Rankings', href: '/rankings' }, { name: 'Highest-Paying States' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Highest-Paying States</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Ranked by average median salary across all occupations.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium w-12">#</th>
+            <th class="pb-2 font-medium">State</th>
+            <th class="pb-2 font-medium text-right">Avg Median Salary</th>
+            <th class="pb-2 font-medium text-right">Total Employment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((s, i) => (
+            <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
+              <td class="py-2 text-[var(--color-text-secondary)]">{i + 1}</td>
+              <td class="py-2 font-medium">{s.name}</td>
+              <td class="py-2 text-right">{formatMoney(s.wages!.median_salary)}</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{formatNumber(s.wages!.total_employment)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-xs text-[var(--color-text-secondary)]">Source: BLS Occupational Employment and Wage Statistics.</p>
+  </section>
+</Base>

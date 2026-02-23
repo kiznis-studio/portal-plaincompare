@@ -1,0 +1,32 @@
+---
+import Base from '../layouts/Base.astro';
+export const prerender = true;
+---
+
+<Base
+  title="About PlainCompare"
+  description="PlainCompare offers free, side-by-side comparisons of U.S. cities and states using official government data."
+>
+  <section class="max-w-3xl mx-auto px-4 py-8 prose dark:prose-invert">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+    </div>
+    <h1>About PlainCompare</h1>
+    <p>PlainCompare is a free tool that lets you compare U.S. metro areas and states side by side across seven key dimensions:</p>
+    <ol>
+      <li><strong>Cost of Living</strong> — Regional Price Parities from the Bureau of Economic Analysis (BEA)</li>
+      <li><strong>Rent</strong> — HUD Fair Market Rents for studios through 4-bedroom units</li>
+      <li><strong>Crime</strong> — FBI Uniform Crime Report violent and property crime rates</li>
+      <li><strong>Wages</strong> — Bureau of Labor Statistics occupational salary data</li>
+      <li><strong>Schools</strong> — NCES enrollment, student-teacher ratios, and charter school data</li>
+      <li><strong>Childcare</strong> — Department of Labor childcare cost estimates</li>
+      <li><strong>Environment</strong> — EPA facility counts, water systems, and Superfund sites</li>
+    </ol>
+    <h2>How It Works</h2>
+    <p>Select two cities or states using the comparison tool on the homepage. PlainCompare queries seven separate government databases in real time and presents the results in a clear, side-by-side format with winner highlights.</p>
+    <h2>Data Sources</h2>
+    <p>All data comes from official U.S. government sources. PlainCompare is not affiliated with any government agency. Data is provided as-is for informational purposes only.</p>
+    <h2>Contact</h2>
+    <p>PlainCompare is part of the <a href="https://kiznis.studio">Kiznis Studio</a> network of public data portals.</p>
+  </section>
+</Base>

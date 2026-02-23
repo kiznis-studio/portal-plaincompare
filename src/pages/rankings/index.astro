@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const rankings = [
+  { href: '/rankings/cheapest-metros', icon: '💰', title: 'Cheapest Metros', desc: 'Lowest cost of living by RPP' },
+  { href: '/rankings/safest-states', icon: '🛡️', title: 'Safest States', desc: 'Lowest violent crime rates' },
+  { href: '/rankings/highest-paying', icon: '💼', title: 'Highest-Paying States', desc: 'Top median salaries' },
+  { href: '/rankings/best-schools', icon: '🎓', title: 'Best Student-Teacher Ratios', desc: 'Lowest student-teacher ratio by state' },
+  { href: '/rankings/cheapest-childcare', icon: '👶', title: 'Cheapest Childcare', desc: 'Lowest avg infant care costs by state' },
+  { href: '/rankings/cleanest-environment', icon: '🌿', title: 'Cleanest Environment', desc: 'Fewest Superfund sites by state' },
+];
+---
+
+<Base
+  title="Rankings"
+  description="Browse rankings of U.S. metros and states across cost of living, crime, wages, schools, childcare, and environment."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Rankings' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Rankings</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Compare metros and states using ranked data from official U.S. government sources.</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {rankings.map(r => (
+        <a href={r.href} class="flex items-start gap-4 p-5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)] transition-colors">
+          <span class="text-2xl">{r.icon}</span>
+          <div>
+            <h2 class="font-semibold text-sm">{r.title}</h2>
+            <p class="text-xs text-[var(--color-text-secondary)] mt-1">{r.desc}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+</Base>

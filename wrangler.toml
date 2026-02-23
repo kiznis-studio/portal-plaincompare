@@ -1,0 +1,52 @@
+name = "portal-plaincompare"
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-03-25"
+compatibility_flags = ["nodejs_compat"]
+
+# Own mapping DB
+[[d1_databases]]
+binding = "DB"
+database_name = "plaincompare-db"
+database_id = "95a63af1-ca56-45f3-879c-4d412e4c45b6"
+
+# PlainCost — cost of living RPPs
+[[d1_databases]]
+binding = "DB_COST"
+database_name = "plaincost-db"
+database_id = "5885cb6f-261a-4008-a6f4-6b9c9d782c61"
+
+# PlainRent — HUD fair market rents
+[[d1_databases]]
+binding = "DB_RENT"
+database_name = "plainrent-db"
+database_id = "1d8c00fa-710e-42bc-ba4b-c9bb2626e70c"
+
+# PlainCrime — FBI crime stats
+[[d1_databases]]
+binding = "DB_CRIME"
+database_name = "plaincrime-db"
+database_id = "affc250c-4671-4ef9-b950-a52d966b378f"
+
+# WageDex — BLS salary data
+[[d1_databases]]
+binding = "DB_WAGE"
+database_name = "wagedex-db"
+database_id = "2702cd58-e358-4b2c-9381-f4d48b968603"
+
+# PlainSchools — NCES school data
+[[d1_databases]]
+binding = "DB_SCHOOLS"
+database_name = "plainschools-db"
+database_id = "30749a84-a9dc-47c8-900a-fc76a52d9f10"
+
+# PlainChildcare — DOL childcare costs
+[[d1_databases]]
+binding = "DB_CHILDCARE"
+database_name = "plainchildcare-db"
+database_id = "cc86664b-b430-4215-a5bc-bc69d392836d"
+
+# PlainEnviro — EPA environmental data
+[[d1_databases]]
+binding = "DB_ENVIRO"
+database_name = "plainenviro-db"
+database_id = "6fccfd32-238b-4f5b-8c91-c483cf1a825f"

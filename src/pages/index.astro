@@ -1,0 +1,157 @@
+---
+import Base from '../layouts/Base.astro';
+import { getAllMetros, getAllStates, getPopularComparisons, getStats } from '../lib/db';
+
+const db = Astro.locals.runtime.env.DB;
+const [metros, states, popularMetro, popularState, stats] = await Promise.all([
+  getAllMetros(db),
+  getAllStates(db),
+  getPopularComparisons(db, 'metro', 12),
+  getPopularComparisons(db, 'state', 12),
+  getStats(db),
+]);
+
+const metroMap = new Map(metros.map(m => [m.slug, m]));
+const stateMap = new Map(states.map(s => [s.slug, s]));
+
+const categories = [
+  { icon: '💰', title: 'Cost of Living', desc: 'Regional Price Parities from BEA', source: 'PlainCost' },
+  { icon: '🏠', title: 'Rent', desc: 'HUD Fair Market Rents by bedroom count', source: 'PlainRent' },
+  { icon: '🛡️', title: 'Crime', desc: 'FBI crime rates per 100K population', source: 'PlainCrime' },
+  { icon: '💼', title: 'Wages', desc: 'BLS occupational salary data', source: 'WageDex' },
+  { icon: '🎓', title: 'Schools', desc: 'NCES enrollment and student-teacher ratios', source: 'PlainSchools' },
+  { icon: '👶', title: 'Childcare', desc: 'DOL childcare cost estimates', source: 'PlainChildcare' },
+  { icon: '🌿', title: 'Environment', desc: 'EPA facilities, water systems, Superfund sites', source: 'PlainEnviro' },
+];
+---
+
+<Base
+  title="PlainCompare — Compare U.S. Cities & States Side by Side"
+  description="Compare cost of living, rent, crime rates, wages, schools, childcare costs, and environmental data across 387 U.S. metro areas and 51 states."
+>
+  <section class="max-w-4xl mx-auto px-4 py-12 md:py-16 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold mb-4">Compare Cities & States</h1>
+    <p class="text-lg text-[var(--color-text-secondary)] mb-8 max-w-2xl mx-auto">
+      Side-by-side comparison across 7 dimensions using official U.S. government data.
+      {stats?.metro_count} metros, {stats?.state_count} states.
+    </p>
+
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6 md:p-8 text-left">
+      <h2 class="text-lg font-semibold mb-4">Compare Two Metros</h2>
+      <form id="metro-compare-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-2" for="metro-a">City A</label>
+          <select name="a" id="metro-a" class="w-full h-12 px-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]">
+            <option value="">Select metro...</option>
+            {metros.map(m => <option value={m.slug}>{m.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2" for="metro-b">City B</label>
+          <select name="b" id="metro-b" class="w-full h-12 px-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]">
+            <option value="">Select metro...</option>
+            {metros.map(m => <option value={m.slug}>{m.name}</option>)}
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <button type="submit" class="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:opacity-90 transition-opacity">Compare Metros</button>
+        </div>
+      </form>
+
+      <div class="mt-6 pt-6 border-t border-[var(--color-border)]">
+        <h2 class="text-lg font-semibold mb-4">Compare Two States</h2>
+        <form id="state-compare-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-2" for="state-a">State A</label>
+            <select name="a" id="state-a" class="w-full h-12 px-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]">
+              <option value="">Select state...</option>
+              {states.map(s => <option value={s.slug}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2" for="state-b">State B</label>
+            <select name="b" id="state-b" class="w-full h-12 px-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]">
+              <option value="">Select state...</option>
+              {states.map(s => <option value={s.slug}>{s.name}</option>)}
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <button type="submit" class="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:opacity-90 transition-opacity">Compare States</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="max-w-4xl mx-auto px-4 pb-12">
+    <h2 class="text-xl font-bold mb-6">Popular Metro Comparisons</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      {popularMetro.map(c => {
+        const a = metroMap.get(c.slug_a);
+        const b = metroMap.get(c.slug_b);
+        if (!a || !b) return null;
+        const nameA = a.name.split(',')[0].split('-')[0];
+        const nameB = b.name.split(',')[0].split('-')[0];
+        return (
+          <a href={`/compare/${c.slug_a}-vs-${c.slug_b}`} class="block px-4 py-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)] transition-colors text-sm">
+            <span class="font-medium">{nameA}</span>
+            <span class="text-[var(--color-text-secondary)]"> vs </span>
+            <span class="font-medium">{nameB}</span>
+          </a>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="max-w-4xl mx-auto px-4 pb-12">
+    <h2 class="text-xl font-bold mb-6">Popular State Comparisons</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      {popularState.map(c => {
+        const a = stateMap.get(c.slug_a);
+        const b = stateMap.get(c.slug_b);
+        if (!a || !b) return null;
+        return (
+          <a href={`/compare/states/${c.slug_a}-vs-${c.slug_b}`} class="block px-4 py-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)] transition-colors text-sm">
+            <span class="font-medium">{a.name}</span>
+            <span class="text-[var(--color-text-secondary)]"> vs </span>
+            <span class="font-medium">{b.name}</span>
+          </a>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="max-w-4xl mx-auto px-4 pb-16">
+    <h2 class="text-xl font-bold mb-6">7 Data Dimensions</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {categories.map(c => (
+        <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div class="text-2xl mb-2">{c.icon}</div>
+          <h3 class="font-semibold text-sm mb-1">{c.title}</h3>
+          <p class="text-xs text-[var(--color-text-secondary)]">{c.desc}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <script is:inline>
+    document.getElementById('metro-compare-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var a = this.querySelector('[name="a"]').value;
+      var b = this.querySelector('[name="b"]').value;
+      if (a && b && a !== b) {
+        var slugs = [a, b].sort();
+        window.location.href = '/compare/' + slugs[0] + '-vs-' + slugs[1];
+      }
+    });
+    document.getElementById('state-compare-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var a = this.querySelector('[name="a"]').value;
+      var b = this.querySelector('[name="b"]').value;
+      if (a && b && a !== b) {
+        var slugs = [a, b].sort();
+        window.location.href = '/compare/states/' + slugs[0] + '-vs-' + slugs[1];
+      }
+    });
+  </script>
+</Base>

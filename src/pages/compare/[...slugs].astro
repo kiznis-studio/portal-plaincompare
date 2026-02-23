@@ -1,0 +1,225 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getMetroBySlug, getMetroComparisonData } from '../../lib/db';
+import { formatMoney, formatRpp, formatNumber, salaryEquivalent, rateValue } from '../../lib/format';
+import type { ComparisonData } from '../../lib/types';
+
+const { slugs } = Astro.params;
+if (!slugs) return Astro.redirect('/');
+
+// Parse "city-a-vs-city-b" from the catch-all
+const parts = slugs.split('-vs-');
+if (parts.length !== 2) return Astro.redirect('/');
+
+const [slugA, slugB] = parts.sort();
+// Redirect to canonical (alphabetical) order
+const canonical = slugA + '-vs-' + slugB;
+if (slugs !== canonical) return Astro.redirect(`/compare/${canonical}`, 301);
+
+const env = Astro.locals.runtime.env;
+const [metroA, metroB] = await Promise.all([
+  getMetroBySlug(env.DB, slugA),
+  getMetroBySlug(env.DB, slugB),
+]);
+
+if (!metroA || !metroB) return Astro.redirect('/404');
+
+const [dataA, dataB] = await Promise.all([
+  getMetroComparisonData(env, metroA),
+  getMetroComparisonData(env, metroB),
+]);
+
+const nameA = metroA.name.split(',')[0].split('-')[0].trim();
+const nameB = metroB.name.split(',')[0].split('-')[0].trim();
+
+function winner(valA: number | null, valB: number | null, lowerBetter = false): 'a' | 'b' | null {
+  if (valA === null || valB === null) return null;
+  if (Math.abs(valA - valB) < 0.01) return null;
+  if (lowerBetter) return valA < valB ? 'a' : 'b';
+  return valA > valB ? 'a' : 'b';
+}
+
+function badge(w: 'a' | 'b' | null, side: 'a' | 'b') {
+  if (w === null) return '';
+  return w === side ? 'text-teal-600 dark:text-teal-400 font-semibold' : 'text-[var(--color-text-secondary)]';
+}
+
+const faqSchema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: `Is ${nameA} more expensive than ${nameB}?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: dataA.cost && dataB.cost
+          ? `${nameA} has a cost of living index of ${dataA.cost.rpp_all?.toFixed(1)} compared to ${nameB}'s ${dataB.cost.rpp_all?.toFixed(1)} (national average = 100).`
+          : 'Cost of living data is not available for one or both metros.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: `What is the rent difference between ${nameA} and ${nameB}?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: dataA.rent && dataB.rent
+          ? `A 2-bedroom apartment averages $${dataA.rent.br2?.toLocaleString()}/mo in ${nameA} vs $${dataB.rent.br2?.toLocaleString()}/mo in ${nameB}.`
+          : 'Rent data is not available for one or both metros.'
+      }
+    },
+  ]
+});
+---
+
+<Base
+  title={`${metroA.name} vs ${metroB.name} — Cost of Living, Rent & More`}
+  description={`Compare ${nameA} and ${nameB}: cost of living, rent, wages, and more. Side-by-side data from official U.S. government sources.`}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Compare' }, { name: `${nameA} vs ${nameB}` }]}
+>
+  <script type="application/ld+json" set:html={faqSchema} />
+
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <span>Compare</span> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">{metroA.name} vs {metroB.name}</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Side-by-side comparison across cost of living, rent, and wages.</p>
+
+    <!-- Cost of Living -->
+    {dataA.cost && dataB.cost && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <span>💰</span> Cost of Living
+          <a href={`https://plaincost.com/metro/${slugA}`} class="text-xs text-[var(--color-primary)] ml-auto" target="_blank" rel="noopener">PlainCost →</a>
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Category</th>
+                <th class="pb-2 font-medium text-right">{nameA}</th>
+                <th class="pb-2 font-medium text-right">{nameB}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Overall RPP', a: dataA.cost.rpp_all, b: dataB.cost.rpp_all },
+                { label: 'Goods', a: dataA.cost.rpp_goods, b: dataB.cost.rpp_goods },
+                { label: 'Services', a: dataA.cost.rpp_services, b: dataB.cost.rpp_services },
+                { label: 'Rents', a: dataA.cost.rpp_rents, b: dataB.cost.rpp_rents },
+              ].map(row => {
+                const w = winner(row.a, row.b, true);
+                return (
+                  <tr class="border-b border-[var(--color-border)]">
+                    <td class="py-3 font-medium">{row.label}</td>
+                    <td class={`py-3 text-right ${badge(w, 'a')}`}>{formatRpp(row.a)}</td>
+                    <td class={`py-3 text-right ${badge(w, 'b')}`}>{formatRpp(row.b)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {dataA.cost.rpp_all && dataB.cost.rpp_all && (
+          <div class="mt-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
+            <h3 class="font-semibold mb-3">Salary Equivalent Calculator</h3>
+            <p class="text-sm text-[var(--color-text-secondary)] mb-2">
+              A <strong>$100,000</strong> salary in <strong>{nameA}</strong> equals:
+            </p>
+            <div class="text-3xl font-bold text-[var(--color-primary)]">
+              ${salaryEquivalent(100000, dataA.cost.rpp_all, dataB.cost.rpp_all).toLocaleString()}
+            </div>
+            <p class="text-sm text-[var(--color-text-secondary)] mt-1">
+              in <strong>{nameB}</strong> for equivalent purchasing power.
+            </p>
+          </div>
+        )}
+      </div>
+    )}
+
+    <!-- Rent -->
+    {dataA.rent && dataB.rent && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <span>🏠</span> Rent (Fair Market Rent)
+          <a href={`https://plainrent.com/metro/${slugA}`} class="text-xs text-[var(--color-primary)] ml-auto" target="_blank" rel="noopener">PlainRent →</a>
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Bedrooms</th>
+                <th class="pb-2 font-medium text-right">{nameA}</th>
+                <th class="pb-2 font-medium text-right">{nameB}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Studio', a: dataA.rent.br0, b: dataB.rent.br0 },
+                { label: '1 Bedroom', a: dataA.rent.br1, b: dataB.rent.br1 },
+                { label: '2 Bedroom', a: dataA.rent.br2, b: dataB.rent.br2 },
+                { label: '3 Bedroom', a: dataA.rent.br3, b: dataB.rent.br3 },
+                { label: '4 Bedroom', a: dataA.rent.br4, b: dataB.rent.br4 },
+              ].map(row => {
+                const w = winner(row.a, row.b, true);
+                return (
+                  <tr class="border-b border-[var(--color-border)]">
+                    <td class="py-3 font-medium">{row.label}</td>
+                    <td class={`py-3 text-right ${badge(w, 'a')}`}>{formatMoney(row.a)}/mo</td>
+                    <td class={`py-3 text-right ${badge(w, 'b')}`}>{formatMoney(row.b)}/mo</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Wages -->
+    {dataA.wages && dataB.wages && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <span>💼</span> Wages & Employment
+          <a href="https://wagedex.com" class="text-xs text-[var(--color-primary)] ml-auto" target="_blank" rel="noopener">WageDex →</a>
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Metric</th>
+                <th class="pb-2 font-medium text-right">{nameA}</th>
+                <th class="pb-2 font-medium text-right">{nameB}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Avg Median Salary</td>
+                <td class={`py-3 text-right ${badge(winner(dataA.wages.median_salary, dataB.wages.median_salary), 'a')}`}>{formatMoney(dataA.wages.median_salary)}</td>
+                <td class={`py-3 text-right ${badge(winner(dataA.wages.median_salary, dataB.wages.median_salary), 'b')}`}>{formatMoney(dataB.wages.median_salary)}</td>
+              </tr>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Total Employment</td>
+                <td class="py-3 text-right">{formatNumber(dataA.wages.total_employment)}</td>
+                <td class="py-3 text-right">{formatNumber(dataB.wages.total_employment)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    {!dataA.cost && !dataB.cost && !dataA.rent && !dataB.rent && !dataA.wages && !dataB.wages && (
+      <div class="text-center py-12 text-[var(--color-text-secondary)]">
+        <p>No comparison data available for these metros.</p>
+      </div>
+    )}
+
+    <div class="mt-8 pt-8 border-t border-[var(--color-border)] text-sm text-[var(--color-text-secondary)]">
+      <p>Data sourced from BEA Regional Price Parities, HUD Fair Market Rents, and BLS Occupational Employment and Wage Statistics.</p>
+    </div>
+  </section>
+</Base>

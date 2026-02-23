@@ -1,0 +1,53 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllStateEnviro } from '../../lib/db';
+import { formatNumber } from '../../lib/format';
+
+const env = Astro.locals.runtime.env;
+const states = await getAllStateEnviro(env.DB_ENVIRO);
+const sorted = states
+  .filter(s => s.num_superfund_sites !== null)
+  .sort((a, b) => (a.num_superfund_sites ?? 999) - (b.num_superfund_sites ?? 999));
+---
+
+<Base
+  title="Cleanest Environment by State"
+  description="U.S. states ranked by number of EPA Superfund sites. Fewer sites indicate a cleaner environment."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Rankings', href: '/rankings' }, { name: 'Cleanest Environment' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Cleanest Environment by State</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Ranked by number of EPA Superfund sites. Fewer is better.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium w-12">#</th>
+            <th class="pb-2 font-medium">State</th>
+            <th class="pb-2 font-medium text-right">Superfund Sites</th>
+            <th class="pb-2 font-medium text-right">EPA Facilities</th>
+            <th class="pb-2 font-medium text-right">Water Violations</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((s, i) => (
+            <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
+              <td class="py-2 text-[var(--color-text-secondary)]">{i + 1}</td>
+              <td class="py-2 font-medium">{s.state_name}</td>
+              <td class="py-2 text-right">{formatNumber(s.num_superfund_sites)}</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{formatNumber(s.num_facilities)}</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{formatNumber(s.num_violations)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-xs text-[var(--color-text-secondary)]">Source: EPA ECHO, Superfund National Priorities List.</p>
+  </section>
+</Base>

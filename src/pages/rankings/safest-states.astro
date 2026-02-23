@@ -1,0 +1,52 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllStateCrime } from '../../lib/db';
+import { formatNumber, rateValue } from '../../lib/format';
+
+const env = Astro.locals.runtime.env;
+const states = await getAllStateCrime(env.DB_CRIME);
+const sorted = states
+  .map(s => ({ ...s, violent_rate: rateValue(s.violent_crime, s.population) }))
+  .filter(s => s.violent_rate !== null)
+  .sort((a, b) => (a.violent_rate ?? 999999) - (b.violent_rate ?? 999999));
+---
+
+<Base
+  title="Safest States by Crime Rate"
+  description="U.S. states ranked by violent crime rate per 100,000 population. Find the safest states."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Rankings', href: '/rankings' }, { name: 'Safest States' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Safest States</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Ranked by violent crime rate per 100,000 population. Lower is safer.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium w-12">#</th>
+            <th class="pb-2 font-medium">State</th>
+            <th class="pb-2 font-medium text-right">Violent Rate</th>
+            <th class="pb-2 font-medium text-right">Property Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((s, i) => (
+            <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
+              <td class="py-2 text-[var(--color-text-secondary)]">{i + 1}</td>
+              <td class="py-2 font-medium">{s.state_name}</td>
+              <td class="py-2 text-right">{s.violent_rate?.toFixed(1)}</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{rateValue(s.property_crime, s.population)?.toFixed(1) ?? 'N/A'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-xs text-[var(--color-text-secondary)]">Source: FBI UCR. Year: {sorted[0]?.year}.</p>
+  </section>
+</Base>

@@ -1,0 +1,54 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllMetroCosts } from '../../lib/db';
+import { formatRpp } from '../../lib/format';
+
+const env = Astro.locals.runtime.env;
+const metros = await getAllMetroCosts(env.DB_COST);
+const sorted = metros.filter(m => m.rpp_all).sort((a, b) => (a.rpp_all ?? 999) - (b.rpp_all ?? 999));
+---
+
+<Base
+  title="Cheapest Metros by Cost of Living"
+  description="U.S. metro areas ranked by cost of living (Regional Price Parity). Find the most affordable cities."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Rankings', href: '/rankings' }, { name: 'Cheapest Metros' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Cheapest Metro Areas</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">Ranked by Regional Price Parity (national average = 100). Lower is cheaper.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium w-12">#</th>
+            <th class="pb-2 font-medium">Metro Area</th>
+            <th class="pb-2 font-medium text-right">RPP</th>
+            <th class="pb-2 font-medium text-right">vs Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((m, i) => {
+            const diff = (m.rpp_all ?? 100) - 100;
+            return (
+              <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
+                <td class="py-2 text-[var(--color-text-secondary)]">{i + 1}</td>
+                <td class="py-2 font-medium">{m.name}</td>
+                <td class="py-2 text-right">{formatRpp(m.rpp_all)}</td>
+                <td class={`py-2 text-right ${diff < 0 ? 'text-teal-600 dark:text-teal-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-xs text-[var(--color-text-secondary)]">Source: BEA Regional Price Parities. Year: {sorted[0]?.year}.</p>
+  </section>
+</Base>

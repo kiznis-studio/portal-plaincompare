@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://plaincompare.com/sitemap-index.xml

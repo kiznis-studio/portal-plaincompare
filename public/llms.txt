@@ -1,0 +1,30 @@
+# PlainCompare — plaincompare.com
+
+> Compare U.S. cities and states side by side across 7 data dimensions.
+
+PlainCompare is a free comparison tool that pulls live data from 7 official U.S. government databases:
+1. Cost of Living (BEA Regional Price Parities)
+2. Rent (HUD Fair Market Rents)
+3. Crime (FBI UCR)
+4. Wages (BLS Occupational Employment Statistics)
+5. Schools (NCES Common Core of Data)
+6. Childcare (DOL Women's Bureau)
+7. Environment (EPA ECHO)
+
+## Coverage
+- 387 metro areas
+- 51 states and territories
+- 1,000+ pre-computed popular comparison pairs
+
+## Key Pages
+- /compare/{city-a}-vs-{city-b} — Metro comparison (3 dimensions: cost, rent, wages)
+- /compare/states/{state-a}-vs-{state-b} — State comparison (all 7 dimensions)
+- /rankings — Rankings across all dimensions
+- /metros — Browse all metro areas
+- /states — Browse all states
+
+## Data
+All data comes from official U.S. government sources. Not affiliated with any government agency.
+
+## Contact
+Part of the Kiznis Studio network — https://kiznis.studio

@@ -1,0 +1,53 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllMetros } from '../../lib/db';
+
+const db = Astro.locals.runtime.env.DB;
+const metros = await getAllMetros(db);
+
+// Group by state
+const byState = new Map<string, typeof metros>();
+for (const m of metros) {
+  const st = m.state_abbr || 'Other';
+  if (!byState.has(st)) byState.set(st, []);
+  byState.get(st)!.push(m);
+}
+const sortedStates = [...byState.keys()].sort();
+---
+
+<Base
+  title="Browse All Metro Areas"
+  description={`Browse all ${metros.length} U.S. metro areas available for comparison on PlainCompare.`}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Metros' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Metro Areas</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">{metros.length} metro areas available for comparison.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium">Metro Area</th>
+            <th class="pb-2 font-medium text-right">State</th>
+            <th class="pb-2 font-medium text-right">CBSA</th>
+          </tr>
+        </thead>
+        <tbody>
+          {metros.map(m => (
+            <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]">
+              <td class="py-2">
+                <a href={`/search?q=${encodeURIComponent(m.name.split(',')[0])}`} class="text-[var(--color-primary)] hover:underline">{m.name}</a>
+              </td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)]">{m.state_abbr}</td>
+              <td class="py-2 text-right text-[var(--color-text-secondary)] font-mono text-xs">{m.cbsa}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Base>
