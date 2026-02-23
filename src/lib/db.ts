@@ -293,12 +293,17 @@ interface Bindings {
 }
 
 export async function getMetroComparisonData(env: Bindings, metro: Metro): Promise<ComparisonData> {
-  const [cost, rent, wages] = await Promise.all([
+  const stateAbbr = metro.state_abbr;
+  const [cost, rent, wages, crime, schools, childcare, enviro] = await Promise.all([
     getMetroCost(env.DB_COST, metro.cbsa),
     getMetroRent(env.DB_RENT, metro.cbsa),
     metro.wagedex_area ? getMetroWages(env.DB_WAGE, metro.wagedex_area) : null,
+    stateAbbr ? getStateCrime(env.DB_CRIME, stateAbbr) : null,
+    stateAbbr ? getStateSchools(env.DB_SCHOOLS, stateAbbr) : null,
+    stateAbbr ? getStateChildcare(env.DB_CHILDCARE, stateAbbr) : null,
+    stateAbbr ? getStateEnviro(env.DB_ENVIRO, stateAbbr) : null,
   ]);
-  return { cost, rent, crime: null, wages, schools: null, childcare: null, enviro: null };
+  return { cost, rent, crime, wages, schools, childcare, enviro };
 }
 
 export async function getStateComparisonData(env: Bindings, state: State): Promise<ComparisonData> {
