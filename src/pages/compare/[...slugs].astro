@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
 import { getMetroBySlug, getMetroComparisonData } from '../../lib/db';
 import { formatMoney, formatRpp, formatNumber, formatPercent, salaryEquivalent, rateValue } from '../../lib/format';
 import type { ComparisonData } from '../../lib/types';
@@ -187,6 +188,8 @@ const faqSchema = JSON.stringify({
         </div>
       </div>
     )}
+
+    <AdSlot slot="mid" />
 
     <!-- Wages -->
     {dataA.wages && dataB.wages && (

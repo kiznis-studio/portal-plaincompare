@@ -1,5 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
+import AdSlot from '../../../components/ads/AdSlot.astro';
 import { getStateBySlug, getStateComparisonData } from '../../../lib/db';
 import { formatMoney, formatRpp, formatNumber, salaryEquivalent, rateValue, formatPercent } from '../../../lib/format';
 
@@ -124,6 +125,8 @@ const propertyRateB = rateValue(dataB.crime?.property_crime ?? null, dataB.crime
         </div>
       </div>
     )}
+
+    <AdSlot slot="mid" />
 
     <!-- Crime -->
     {dataA.crime && dataB.crime && (
