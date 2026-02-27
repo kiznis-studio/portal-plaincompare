@@ -132,3 +132,20 @@ export interface CountyComparisonData {
   schools: SchoolsData | null;
   enviro: EnviroData | null;
 }
+
+// ---- Life Score types ----
+
+export interface LifeScore {
+  slug: string;
+  type: 'metro' | 'state';
+  name: string;
+  cost_score: number | null;
+  wages_score: number | null;
+  rent_score: number | null;
+  crime_score: number | null;
+  schools_score: number | null;
+  childcare_score: number | null;
+  enviro_score: number | null;
+  composite_score: number;
+  grade: string;
+}

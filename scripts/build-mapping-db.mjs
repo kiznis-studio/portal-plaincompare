@@ -62,10 +62,26 @@ db.exec(`
     level TEXT NOT NULL,
     PRIMARY KEY (slug_a, slug_b)
   );
+  CREATE TABLE life_scores (
+    slug TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    cost_score REAL,
+    wages_score REAL,
+    rent_score REAL,
+    crime_score REAL,
+    schools_score REAL,
+    childcare_score REAL,
+    enviro_score REAL,
+    composite_score REAL NOT NULL,
+    grade TEXT NOT NULL
+  );
   CREATE INDEX idx_metros_cbsa ON metros(cbsa);
   CREATE INDEX idx_metros_state ON metros(state_abbr);
   CREATE INDEX idx_counties_fips ON counties(fips);
   CREATE INDEX idx_counties_state ON counties(state_abbr);
+  CREATE INDEX idx_life_scores_type ON life_scores(type);
+  CREATE INDEX idx_life_scores_composite ON life_scores(composite_score DESC);
 `);
 
 // ---- METROS (from PlainCost as canonical source) ----
@@ -233,11 +249,264 @@ const insertComparisons = db.transaction(() => {
 const compCount = insertComparisons();
 console.log(`Inserted ${compCount} popular comparisons`);
 
+// ---- LIFE SCORES (percentile-based composite scores for metros and states) ----
+console.log('\n--- Computing Life Scores ---');
+
+const schoolsDb = new Database(SOURCE_DBS.schools, { readonly: true });
+const enviroDb = new Database(SOURCE_DBS.enviro, { readonly: true });
+const rentDb = new Database(SOURCE_DBS.rent, { readonly: true });
+
+// Weights: cost 20%, wages 20%, rent 15%, crime 15%, schools 10%, childcare 10%, enviro 10%
+const WEIGHTS = { cost: 0.20, wages: 0.20, rent: 0.15, crime: 0.15, schools: 0.10, childcare: 0.10, enviro: 0.10 };
+// Lower is better for these (invert percentile)
+const LOWER_IS_BETTER = new Set(['cost', 'rent', 'crime', 'childcare']);
+
+function computeGrade(composite) {
+  if (composite >= 95) return 'A+';
+  if (composite >= 90) return 'A';
+  if (composite >= 85) return 'A-';
+  if (composite >= 80) return 'B+';
+  if (composite >= 75) return 'B';
+  if (composite >= 70) return 'B-';
+  if (composite >= 65) return 'C+';
+  if (composite >= 60) return 'C';
+  if (composite >= 55) return 'C-';
+  if (composite >= 45) return 'D';
+  return 'F';
+}
+
+function percentileRank(values) {
+  // Return map of index → percentile (0-100)
+  const sorted = values.map((v, i) => ({ v, i })).filter(x => x.v !== null).sort((a, b) => a.v - b.v);
+  const ranks = new Map();
+  for (let k = 0; k < sorted.length; k++) {
+    ranks.set(sorted[k].i, (k / (sorted.length - 1)) * 100);
+  }
+  return ranks;
+}
+
+// ---- Gather raw data for metros ----
+// Cost: rpp_all (higher = more expensive → lower is better)
+const metroCostMap = new Map(
+  costDb.prepare('SELECT cbsa, rpp_all FROM msas WHERE rpp_all IS NOT NULL').all()
+    .map(r => [r.cbsa, r.rpp_all])
+);
+
+// Wages: avg median salary (higher = better)
+const metroWageMap = new Map(
+  wageDb.prepare(`
+    SELECT area_code, CAST(AVG(a_median) AS INTEGER) as avg_median
+    FROM metro_wages WHERE a_median IS NOT NULL AND a_median > 0
+    GROUP BY area_code
+  `).all().map(r => [r.area_code, r.avg_median])
+);
+
+// Rent: br2 (2-bedroom FMR, lower is better)
+const metroRentMap = new Map(
+  rentDb.prepare(`
+    SELECT cbsa_code, br2 FROM fmr_metro
+    WHERE year = (SELECT MAX(year) FROM fmr_metro) AND br2 IS NOT NULL
+  `).all().map(r => [r.cbsa_code, r.br2])
+);
+
+// Crime: violent crime rate per 100K (state level, lower is better)
+const stateCrimeMap = new Map(
+  crimeDb.prepare(`
+    SELECT s.state_abbr, ROUND(sc.violent_crime * 100000.0 / sc.population, 1) as rate
+    FROM state_crime sc JOIN states s ON sc.state_fips = s.state_fips
+    WHERE sc.year = (SELECT MAX(year) FROM state_crime) AND sc.population > 0
+  `).all().map(r => [r.state_abbr, r.rate])
+);
+
+// Schools: student-teacher ratio (state level, lower is better — but we invert meaning:
+// use enrollment_per_school as proxy for quality; actually use avg student_teacher_ratio lower=better)
+const stateSchoolsMap = new Map(
+  schoolsDb.prepare(`
+    SELECT s.state_abbr, ROUND(AVG(sc.student_teacher_ratio), 1) as avg_str
+    FROM schools sc JOIN states s ON sc.state_fips = s.state_fips
+    WHERE sc.student_teacher_ratio IS NOT NULL AND sc.student_teacher_ratio > 0
+    GROUP BY s.state_abbr
+  `).all().map(r => [r.state_abbr, r.avg_str])
+);
+
+// Childcare: center infant cost (state avg, lower is better)
+const stateChildcareMap = new Map(
+  childcareDb.prepare(`
+    SELECT state as state_abbr, CAST(AVG(center_infant) AS INTEGER) as avg_cost
+    FROM counties WHERE center_infant IS NOT NULL AND center_infant > 0
+    GROUP BY state
+  `).all().map(r => [r.state_abbr, r.avg_cost])
+);
+
+// Environment: violations per facility (state level, lower is better)
+const stateEnviroMap = new Map(
+  enviroDb.prepare(`
+    SELECT state_abbr, ROUND(CAST(num_violations AS REAL) / NULLIF(num_facilities, 0), 3) as viol_rate
+    FROM states WHERE num_facilities > 0
+  `).all().map(r => [r.state_abbr, r.viol_rate])
+);
+
+// Build metro score entries
+const metroEntries = [];
+const allMetroSlugs = db.prepare('SELECT slug, name, cbsa, state_abbr, wagedex_area FROM metros').all();
+
+for (const m of allMetroSlugs) {
+  const entry = {
+    slug: m.slug, type: 'metro', name: m.name,
+    cost_raw: metroCostMap.get(m.cbsa) ?? null,
+    wages_raw: m.wagedex_area ? (metroWageMap.get(m.wagedex_area) ?? null) : null,
+    rent_raw: metroRentMap.get(m.cbsa) ?? null,
+    crime_raw: m.state_abbr ? (stateCrimeMap.get(m.state_abbr) ?? null) : null,
+    schools_raw: m.state_abbr ? (stateSchoolsMap.get(m.state_abbr) ?? null) : null,
+    childcare_raw: m.state_abbr ? (stateChildcareMap.get(m.state_abbr) ?? null) : null,
+    enviro_raw: m.state_abbr ? (stateEnviroMap.get(m.state_abbr) ?? null) : null,
+  };
+  metroEntries.push(entry);
+}
+
+// Compute percentiles for each dimension across metros
+const dims = ['cost', 'wages', 'rent', 'crime', 'schools', 'childcare', 'enviro'];
+const metroPercentiles = {};
+for (const dim of dims) {
+  const vals = metroEntries.map(e => e[dim + '_raw']);
+  metroPercentiles[dim] = percentileRank(vals);
+}
+
+// Assign scores and compute composite
+const insertScore = db.prepare(
+  'INSERT INTO life_scores (slug, type, name, cost_score, wages_score, rent_score, crime_score, schools_score, childcare_score, enviro_score, composite_score, grade) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+);
+
+const insertScores = db.transaction(() => {
+  let count = 0;
+  for (let i = 0; i < metroEntries.length; i++) {
+    const e = metroEntries[i];
+    const scores = {};
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (const dim of dims) {
+      const pctRank = metroPercentiles[dim].get(i);
+      if (pctRank !== undefined) {
+        // Invert for "lower is better" dimensions
+        scores[dim] = LOWER_IS_BETTER.has(dim) ? (100 - pctRank) : pctRank;
+        weightedSum += scores[dim] * WEIGHTS[dim];
+        totalWeight += WEIGHTS[dim];
+      } else {
+        scores[dim] = null;
+      }
+    }
+
+    // Re-normalize if some dimensions are missing
+    const composite = totalWeight > 0 ? weightedSum / totalWeight : 50;
+    const grade = computeGrade(composite);
+
+    insertScore.run(
+      e.slug, 'metro', e.name,
+      scores.cost, scores.wages, scores.rent, scores.crime,
+      scores.schools, scores.childcare, scores.enviro,
+      Math.round(composite * 10) / 10, grade
+    );
+    count++;
+  }
+
+  // ---- STATE SCORES ----
+  // Gather per-state data
+  const stateRows = db.prepare('SELECT slug, abbr, name FROM states').all();
+
+  // State cost: RPP from PlainCost states table
+  const stateCostMap = new Map(
+    costDb.prepare('SELECT abbr, rpp_all FROM states WHERE rpp_all IS NOT NULL').all()
+      .map(r => [r.abbr, r.rpp_all])
+  );
+
+  // State wages: from WageDex state_wages (slug = full state name like "california")
+  const stateWageMap = new Map(
+    wageDb.prepare(`
+      SELECT a.slug, CAST(AVG(sw.a_median) AS INTEGER) as avg_median
+      FROM state_wages sw
+      JOIN areas a ON sw.area_code = a.area_code
+      WHERE a.area_type='state' AND sw.a_median IS NOT NULL AND sw.a_median > 0
+      GROUP BY a.area_code
+    `).all().map(r => [r.slug, r.avg_median])
+  );
+
+  // State rent: avg county br2
+  const stateRentMap = new Map(
+    rentDb.prepare(`
+      SELECT s.state_abbr, CAST(AVG(fc.br2) AS INTEGER) as avg_rent
+      FROM fmr_county fc
+      JOIN counties c ON fc.fips = c.fips
+      JOIN states s ON c.state_code = s.state_code
+      WHERE fc.year = (SELECT MAX(year) FROM fmr_county) AND fc.br2 IS NOT NULL
+      GROUP BY s.state_abbr
+    `).all().map(r => [r.state_abbr, r.avg_rent])
+  );
+
+  const stateEntries = [];
+  for (const s of stateRows) {
+    stateEntries.push({
+      slug: s.slug, type: 'state', name: s.name,
+      cost_raw: stateCostMap.get(s.abbr) ?? null,
+      wages_raw: stateWageMap.get(s.slug) ?? null,
+      rent_raw: stateRentMap.get(s.abbr) ?? null,
+      crime_raw: stateCrimeMap.get(s.abbr) ?? null,
+      schools_raw: stateSchoolsMap.get(s.abbr) ?? null,
+      childcare_raw: stateChildcareMap.get(s.abbr) ?? null,
+      enviro_raw: stateEnviroMap.get(s.abbr) ?? null,
+    });
+  }
+
+  // Percentiles for states
+  const statePercentiles = {};
+  for (const dim of dims) {
+    const vals = stateEntries.map(e => e[dim + '_raw']);
+    statePercentiles[dim] = percentileRank(vals);
+  }
+
+  for (let i = 0; i < stateEntries.length; i++) {
+    const e = stateEntries[i];
+    const scores = {};
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (const dim of dims) {
+      const pctRank = statePercentiles[dim].get(i);
+      if (pctRank !== undefined) {
+        scores[dim] = LOWER_IS_BETTER.has(dim) ? (100 - pctRank) : pctRank;
+        weightedSum += scores[dim] * WEIGHTS[dim];
+        totalWeight += WEIGHTS[dim];
+      } else {
+        scores[dim] = null;
+      }
+    }
+
+    const composite = totalWeight > 0 ? weightedSum / totalWeight : 50;
+    const grade = computeGrade(composite);
+
+    insertScore.run(
+      e.slug, 'state', e.name,
+      scores.cost, scores.wages, scores.rent, scores.crime,
+      scores.schools, scores.childcare, scores.enviro,
+      Math.round(composite * 10) / 10, grade
+    );
+    count++;
+  }
+
+  return count;
+});
+
+const scoreCount = insertScores();
+console.log(`Inserted ${scoreCount} life scores`);
+
 // Cleanup
 costDb.close();
 wageDb.close();
 crimeDb.close();
 childcareDb.close();
+schoolsDb.close();
+enviroDb.close();
+rentDb.close();
 db.close();
 
 console.log(`\nDone! Output: ${OUT}`);

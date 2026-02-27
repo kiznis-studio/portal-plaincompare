@@ -1,0 +1,158 @@
+---
+export const prerender = false;
+import Base from '../../../layouts/Base.astro';
+import { getLifeScore, getTopLifeScores } from '../../../lib/db';
+import { DIMENSION_LABELS, DIMENSION_WEIGHTS, LOWER_IS_BETTER, gradeBgClass } from '../../../lib/scores';
+import type { Dimension } from '../../../lib/scores';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/score/');
+
+const db = Astro.locals.runtime.env.DB;
+const score = await getLifeScore(db, slug);
+if (!score || score.type !== 'state') return Astro.redirect('/score/');
+
+const allStates = await getTopLifeScores(db, 'state', 100);
+const rank = allStates.findIndex(s => s.slug === slug) + 1;
+
+const dims: Dimension[] = ['cost', 'wages', 'rent', 'crime', 'schools', 'childcare', 'enviro'];
+const dimScores = dims.map(d => ({
+  key: d,
+  label: DIMENSION_LABELS[d],
+  score: score[`${d}_score` as keyof typeof score] as number | null,
+  weight: DIMENSION_WEIGHTS[d],
+}));
+
+// Radar chart SVG
+const cx = 100, cy = 100, maxR = 80;
+const n = dims.length;
+const angleStep = (2 * Math.PI) / n;
+const startAngle = -Math.PI / 2;
+
+function polarToXY(angle: number, r: number) {
+  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+}
+
+const gridLevels = [25, 50, 75, 100];
+const gridPolygons = gridLevels.map(pct => {
+  const r = (pct / 100) * maxR;
+  return Array.from({ length: n }, (_, i) => {
+    const angle = startAngle + i * angleStep;
+    const { x, y } = polarToXY(angle, r);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+});
+
+const scoreValues = dimScores.map(d => d.score);
+const dataPoints = scoreValues.map((v, i) => {
+  const r = v !== null ? (v / 100) * maxR : 0;
+  const angle = startAngle + i * angleStep;
+  const { x, y } = polarToXY(angle, r);
+  return `${x.toFixed(1)},${y.toFixed(1)}`;
+}).join(' ');
+
+const labelPositions = dims.map((_, i) => {
+  const angle = startAngle + i * angleStep;
+  return polarToXY(angle, maxR + 18);
+});
+
+const ogImage = `/og/score/states/${slug}.png`;
+---
+
+<Base
+  title={`${score.name} Life Score — State Quality of Life Rating`}
+  description={`${score.name} scores ${score.composite_score.toFixed(1)}/100 (${score.grade}) in our composite quality-of-life rating across cost, wages, rent, safety, schools, childcare, and environment.`}
+  image={ogImage}
+  breadcrumbs={[
+    { name: 'Home', href: '/' },
+    { name: 'Life Score', href: '/score/' },
+    { name: score.name },
+  ]}
+>
+  <div class="max-w-6xl mx-auto px-4 py-10">
+    <div class="flex flex-col md:flex-row md:items-start gap-6 mb-10">
+      <div class="flex-1">
+        <h1 class="text-3xl font-bold text-[var(--color-text)] mb-2">{score.name}</h1>
+        <p class="text-[var(--color-text-secondary)]">Ranked #{rank} of {allStates.length} states</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold ${gradeBgClass(score.grade)}`}>
+          {score.grade}
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-[var(--color-text)]">{score.composite_score.toFixed(1)}</div>
+          <div class="text-sm text-[var(--color-text-secondary)]">out of 100</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+      <!-- Radar Chart -->
+      <div class="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 class="text-lg font-semibold text-[var(--color-text)] mb-4">Score Breakdown</h2>
+        <svg viewBox="0 0 200 200" class="w-full max-w-sm mx-auto" xmlns="http://www.w3.org/2000/svg">
+          {gridPolygons.map(pts => (
+            <polygon points={pts} fill="none" stroke="var(--color-border)" stroke-width="0.5" />
+          ))}
+          {dims.map((_, i) => {
+            const angle = startAngle + i * angleStep;
+            const { x, y } = polarToXY(angle, maxR);
+            return <line x1={cx} y1={cy} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="var(--color-border)" stroke-width="0.5" />;
+          })}
+          <polygon points={dataPoints} fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="2" />
+          {scoreValues.map((v, i) => {
+            if (v === null) return null;
+            const r = (v / 100) * maxR;
+            const angle = startAngle + i * angleStep;
+            const { x, y } = polarToXY(angle, r);
+            return <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="3" fill="#0d9488" />;
+          })}
+          {labelPositions.map((pos, i) => (
+            <text x={pos.x.toFixed(1)} y={pos.y.toFixed(1)} text-anchor="middle" dominant-baseline="middle" class="text-[5px] fill-[var(--color-text-secondary)]" font-family="system-ui, sans-serif">
+              {DIMENSION_LABELS[dims[i]]}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      <!-- Dimension Details -->
+      <div class="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 class="text-lg font-semibold text-[var(--color-text)] mb-4">Dimension Scores</h2>
+        <div class="space-y-4">
+          {dimScores.map(d => (
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-medium text-[var(--color-text)]">{d.label}</span>
+                <span class="text-sm text-[var(--color-text-secondary)]">
+                  {d.score !== null ? d.score.toFixed(0) : '—'}/100
+                  <span class="text-xs ml-1">({Math.round(d.weight * 100)}%)</span>
+                </span>
+              </div>
+              <div class="h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
+                <div class="h-full rounded-full bg-[var(--color-primary)]" style={`width: ${d.score !== null ? d.score : 0}%`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- Similar states -->
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Similar-Scoring States</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {allStates.filter(s => s.slug !== slug && Math.abs(s.composite_score - score.composite_score) < 8).slice(0, 6).map(s => (
+          <a href={`/score/states/${s.slug}`} class="flex items-center justify-between p-3 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
+            <span class="text-sm font-medium text-[var(--color-text)] truncate mr-2">{s.name}</span>
+            <span class={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${gradeBgClass(s.grade)}`}>{s.grade} {s.composite_score.toFixed(1)}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <div class="flex flex-wrap gap-3">
+      <a href="/score/rankings?type=state" class="text-sm font-medium text-[var(--color-primary)] hover:underline">State rankings &rarr;</a>
+      <a href="/score/" class="text-sm font-medium text-[var(--color-primary)] hover:underline">Life Score methodology &rarr;</a>
+    </div>
+  </div>
+</Base>

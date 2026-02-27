@@ -20,6 +20,7 @@ const isActive = (path: string) => currentPath === path || currentPath.startsWit
         <a href="/metros" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/metros') || isActive('/metro') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Metros</a>
         <a href="/states" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/states') || isActive('/state') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>States</a>
         <a href="/counties" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/counties') || isActive('/compare/counties') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Counties</a>
+        <a href="/score/" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/score') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Life Score</a>
         <a href="/rankings" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/rankings') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Rankings</a>
         <a href="/about" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/about') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>About</a>
       </nav>
@@ -57,6 +58,7 @@ const isActive = (path: string) => currentPath === path || currentPath.startsWit
         <a href="/metros" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/metros') || isActive('/metro') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Metros</a>
         <a href="/states" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/states') || isActive('/state') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>States</a>
         <a href="/counties" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/counties') || isActive('/compare/counties') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Counties</a>
+        <a href="/score/" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/score') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Life Score</a>
         <a href="/rankings" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/rankings') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Rankings</a>
         <a href="/about" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/about') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>About</a>
       </div>

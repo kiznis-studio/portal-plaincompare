@@ -2,7 +2,7 @@
 // All functions accept D1Database bindings — NEVER at module scope
 
 import type {
-  Metro, State, PopularComparison, County,
+  Metro, State, PopularComparison, County, LifeScore,
   CostData, RentData, CrimeData, WageData,
   SchoolsData, ChildcareData, EnviroData, ComparisonData,
   CountyChildcareData, CountyComparisonData,
@@ -372,6 +372,26 @@ export async function getStateComparisonData(env: Bindings, state: State): Promi
     getStateEnviro(env.DB_ENVIRO, state.abbr),
   ]);
   return { cost, rent, crime, wages, schools, childcare, enviro };
+}
+
+// ---- Life Scores ----
+
+export async function getLifeScore(db: D1Database, slug: string): Promise<LifeScore | null> {
+  return db.prepare('SELECT * FROM life_scores WHERE slug = ?').bind(slug).first<LifeScore>();
+}
+
+export async function getTopLifeScores(db: D1Database, type: string, limit = 20): Promise<LifeScore[]> {
+  const { results } = await db.prepare(
+    'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC LIMIT ?'
+  ).bind(type, limit).all<LifeScore>();
+  return results;
+}
+
+export async function getAllLifeScoreRankings(db: D1Database, type: string): Promise<LifeScore[]> {
+  const { results } = await db.prepare(
+    'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC'
+  ).bind(type).all<LifeScore>();
+  return results;
 }
 
 // ---- Stats for homepage ----

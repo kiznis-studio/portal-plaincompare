@@ -9,6 +9,7 @@ export const GET: APIRoute = async ({ site }) => {
   <sitemap><loc>${base}sitemap-states.xml</loc></sitemap>
   <sitemap><loc>${base}sitemap-comparisons.xml</loc></sitemap>
   <sitemap><loc>${base}sitemap-counties.xml</loc></sitemap>
+  <sitemap><loc>${base}sitemap-scores.xml</loc></sitemap>
 </sitemapindex>`;
   return new Response(xml, { headers: { 'Content-Type': 'application/xml' } });
 };

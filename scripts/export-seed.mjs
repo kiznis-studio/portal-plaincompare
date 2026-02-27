@@ -67,10 +67,26 @@ CREATE TABLE IF NOT EXISTS popular_comparisons (
   level TEXT NOT NULL,
   PRIMARY KEY (slug_a, slug_b)
 );
+CREATE TABLE IF NOT EXISTS life_scores (
+  slug TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  cost_score REAL,
+  wages_score REAL,
+  rent_score REAL,
+  crime_score REAL,
+  schools_score REAL,
+  childcare_score REAL,
+  enviro_score REAL,
+  composite_score REAL NOT NULL,
+  grade TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_metros_cbsa ON metros(cbsa);
 CREATE INDEX IF NOT EXISTS idx_metros_state ON metros(state_abbr);
 CREATE INDEX IF NOT EXISTS idx_counties_fips ON counties(fips);
 CREATE INDEX IF NOT EXISTS idx_counties_state ON counties(state_abbr);
+CREATE INDEX IF NOT EXISTS idx_life_scores_type ON life_scores(type);
+CREATE INDEX IF NOT EXISTS idx_life_scores_composite ON life_scores(composite_score DESC);
 `.trim();
 
 writeFileSync(resolve(SEED_DIR, '00-schema.sql'), schema + '\n');
@@ -80,6 +96,7 @@ exportTable('metros', '01-metros.sql');
 exportTable('states', '02-states.sql');
 exportTable('counties', '03-counties.sql');
 exportTable('popular_comparisons', '04-comparisons.sql');
+exportTable('life_scores', '05-life-scores.sql');
 
 db.close();
 console.log('\nDone!');
