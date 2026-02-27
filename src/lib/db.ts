@@ -2,9 +2,10 @@
 // All functions accept D1Database bindings — NEVER at module scope
 
 import type {
-  Metro, State, PopularComparison,
+  Metro, State, PopularComparison, County,
   CostData, RentData, CrimeData, WageData,
   SchoolsData, ChildcareData, EnviroData, ComparisonData,
+  CountyChildcareData, CountyComparisonData,
 } from './types';
 
 // ---- Own DB (mapping tables) ----
@@ -279,7 +280,24 @@ export async function getAllStateEnviro(db: D1Database): Promise<(EnviroData & {
   return results as any;
 }
 
-// ---- Composite: Fetch all data for a metro/state comparison ----
+// ---- Counties (own DB) ----
+
+export async function getCountyBySlug(db: D1Database, slug: string): Promise<County | null> {
+  return db.prepare('SELECT * FROM counties WHERE slug = ?').bind(slug).first<County>();
+}
+
+export async function getAllCounties(db: D1Database): Promise<County[]> {
+  const { results } = await db.prepare('SELECT * FROM counties ORDER BY name COLLATE NOCASE').all<County>();
+  return results;
+}
+
+export async function searchCounties(db: D1Database, query: string, limit = 20): Promise<County[]> {
+  const like = '%' + query.trim() + '%';
+  const { results } = await db.prepare(
+    'SELECT * FROM counties WHERE name LIKE ? OR fips = ? ORDER BY population DESC LIMIT ?'
+  ).bind(like, query.trim(), limit).all<County>();
+  return results;
+}
 
 interface Bindings {
   DB: D1Database;
@@ -291,6 +309,43 @@ interface Bindings {
   DB_CHILDCARE: D1Database;
   DB_ENVIRO: D1Database;
 }
+
+// ---- County Childcare (PlainChildcare DB — TRUE county data) ----
+
+export async function getCountyChildcare(db: D1Database, fips: string): Promise<CountyChildcareData | null> {
+  return db.prepare(`
+    SELECT center_infant, center_toddler, center_preschool, center_school_age,
+           family_infant, family_toddler, family_preschool, family_school_age,
+           median_income, poverty_rate
+    FROM counties WHERE fips = ?
+  `).bind(fips).first<CountyChildcareData>();
+}
+
+// ---- County Rent (PlainRent DB — TRUE county data) ----
+
+export async function getCountyRent(db: D1Database, fips: string): Promise<RentData | null> {
+  return db.prepare(
+    'SELECT br0, br1, br2, br3, br4, year FROM fmr_county WHERE fips = ? ORDER BY year DESC LIMIT 1'
+  ).bind(fips).first<RentData>();
+}
+
+// ---- Composite: Fetch all data for a county comparison ----
+
+export async function getCountyComparisonData(env: Bindings, county: County): Promise<CountyComparisonData> {
+  const abbr = county.state_abbr;
+  const [childcare, rent, cost, crime, wages, schools, enviro] = await Promise.all([
+    getCountyChildcare(env.DB_CHILDCARE, county.fips),
+    getCountyRent(env.DB_RENT, county.fips),
+    abbr ? getStateCost(env.DB_COST, abbr) : null,
+    abbr ? getStateCrime(env.DB_CRIME, abbr) : null,
+    abbr ? getStateWages(env.DB_WAGE, abbr) : null,
+    abbr ? getStateSchools(env.DB_SCHOOLS, abbr) : null,
+    abbr ? getStateEnviro(env.DB_ENVIRO, abbr) : null,
+  ]);
+  return { childcare, rent, cost, crime, wages, schools, enviro };
+}
+
+// ---- Composite: Fetch all data for a metro/state comparison ----
 
 export async function getMetroComparisonData(env: Bindings, metro: Metro): Promise<ComparisonData> {
   const stateAbbr = metro.state_abbr;

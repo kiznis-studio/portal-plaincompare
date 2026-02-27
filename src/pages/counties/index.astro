@@ -1,0 +1,62 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllCounties } from '../../lib/db';
+
+const db = Astro.locals.runtime.env.DB;
+const counties = await getAllCounties(db);
+
+// Group by state
+const byState = new Map<string, typeof counties>();
+for (const c of counties) {
+  const st = c.state_abbr;
+  if (!byState.has(st)) byState.set(st, []);
+  byState.get(st)!.push(c);
+}
+const sortedStates = [...byState.keys()].sort();
+---
+
+<Base
+  title="Browse All U.S. Counties — County Comparison"
+  description={`Browse all ${counties.length.toLocaleString()} U.S. counties available for comparison. Compare childcare costs, rent, and more.`}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Counties' }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">U.S. Counties</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">
+      {counties.length.toLocaleString()} counties available for comparison. Select two counties to compare childcare costs, rent, and more.
+    </p>
+
+    <!-- State jump links -->
+    <div class="flex flex-wrap gap-1.5 mb-8">
+      {sortedStates.map(st => (
+        <a href={`#${st}`} class="px-2 py-1 text-xs font-medium rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-colors">
+          {st}
+        </a>
+      ))}
+    </div>
+
+    {sortedStates.map(st => {
+      const stateCounties = byState.get(st)!;
+      return (
+        <div id={st} class="mb-8">
+          <h2 class="text-lg font-semibold mb-3 sticky top-14 bg-[var(--color-bg)] py-2 border-b border-[var(--color-border)]">
+            {stateCounties[0]?.state_name || st} <span class="text-sm font-normal text-[var(--color-text-secondary)]">({stateCounties.length})</span>
+          </h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1">
+            {stateCounties.map(c => (
+              <a
+                href={`/search?q=${encodeURIComponent(c.name)}&type=county`}
+                class="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] py-0.5 truncate"
+              >
+                {c.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </section>
+</Base>

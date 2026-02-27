@@ -97,3 +97,38 @@ export interface ComparisonResult {
   b: { entity: Metro | State; data: ComparisonData };
   level: 'metro' | 'state';
 }
+
+// ---- County types ----
+
+export interface County {
+  slug: string;
+  name: string;
+  state_abbr: string;
+  state_name: string;
+  fips: string;
+  population: number | null;
+}
+
+export interface CountyChildcareData {
+  center_infant: number | null;
+  center_toddler: number | null;
+  center_preschool: number | null;
+  center_school_age: number | null;
+  family_infant: number | null;
+  family_toddler: number | null;
+  family_preschool: number | null;
+  family_school_age: number | null;
+  median_income: number | null;
+  poverty_rate: number | null;
+}
+
+export interface CountyComparisonData {
+  childcare: CountyChildcareData | null;
+  rent: RentData | null;
+  // State-level fallbacks
+  cost: CostData | null;
+  crime: CrimeData | null;
+  wages: WageData | null;
+  schools: SchoolsData | null;
+  enviro: EnviroData | null;
+}

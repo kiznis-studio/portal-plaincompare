@@ -53,6 +53,14 @@ CREATE TABLE IF NOT EXISTS states (
   name TEXT NOT NULL,
   fips TEXT
 );
+CREATE TABLE IF NOT EXISTS counties (
+  slug TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  state_abbr TEXT NOT NULL,
+  state_name TEXT NOT NULL,
+  fips TEXT NOT NULL,
+  population INTEGER
+);
 CREATE TABLE IF NOT EXISTS popular_comparisons (
   slug_a TEXT NOT NULL,
   slug_b TEXT NOT NULL,
@@ -61,6 +69,8 @@ CREATE TABLE IF NOT EXISTS popular_comparisons (
 );
 CREATE INDEX IF NOT EXISTS idx_metros_cbsa ON metros(cbsa);
 CREATE INDEX IF NOT EXISTS idx_metros_state ON metros(state_abbr);
+CREATE INDEX IF NOT EXISTS idx_counties_fips ON counties(fips);
+CREATE INDEX IF NOT EXISTS idx_counties_state ON counties(state_abbr);
 `.trim();
 
 writeFileSync(resolve(SEED_DIR, '00-schema.sql'), schema + '\n');
@@ -68,7 +78,8 @@ console.log('Schema → 00-schema.sql');
 
 exportTable('metros', '01-metros.sql');
 exportTable('states', '02-states.sql');
-exportTable('popular_comparisons', '03-comparisons.sql');
+exportTable('counties', '03-counties.sql');
+exportTable('popular_comparisons', '04-comparisons.sql');
 
 db.close();
 console.log('\nDone!');

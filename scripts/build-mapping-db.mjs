@@ -48,6 +48,14 @@ db.exec(`
     name TEXT NOT NULL,
     fips TEXT
   );
+  CREATE TABLE counties (
+    slug TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    state_abbr TEXT NOT NULL,
+    state_name TEXT NOT NULL,
+    fips TEXT NOT NULL,
+    population INTEGER
+  );
   CREATE TABLE popular_comparisons (
     slug_a TEXT NOT NULL,
     slug_b TEXT NOT NULL,
@@ -56,6 +64,8 @@ db.exec(`
   );
   CREATE INDEX idx_metros_cbsa ON metros(cbsa);
   CREATE INDEX idx_metros_state ON metros(state_abbr);
+  CREATE INDEX idx_counties_fips ON counties(fips);
+  CREATE INDEX idx_counties_state ON counties(state_abbr);
 `);
 
 // ---- METROS (from PlainCost as canonical source) ----
@@ -106,6 +116,30 @@ const insertStates = db.transaction(() => {
 });
 insertStates();
 console.log(`Inserted ${costStates.length} states`);
+
+// ---- COUNTIES (from PlainChildcare as canonical source — has slugs, names, state codes) ----
+const childcareDb = new Database(SOURCE_DBS.childcare, { readonly: true });
+
+// Build state abbr → state name map
+const stateNameMap = new Map(costStates.map(s => [s.abbr, s.name]));
+
+const childcareCounties = childcareDb.prepare(
+  'SELECT fips, name, state as state_abbr, slug, population FROM counties ORDER BY name COLLATE NOCASE'
+).all();
+console.log(`PlainChildcare counties: ${childcareCounties.length}`);
+
+const insertCounty = db.prepare(
+  'INSERT INTO counties (slug, name, state_abbr, state_name, fips, population) VALUES (?, ?, ?, ?, ?, ?)'
+);
+
+const insertCounties = db.transaction(() => {
+  for (const c of childcareCounties) {
+    const stateName = stateNameMap.get(c.state_abbr) || c.state_abbr;
+    insertCounty.run(c.slug, c.name, c.state_abbr, stateName, c.fips, c.population || null);
+  }
+});
+insertCounties();
+console.log(`Inserted ${childcareCounties.length} counties`);
 
 // ---- POPULAR COMPARISONS ----
 const topMetros = [
@@ -181,6 +215,19 @@ const insertComparisons = db.transaction(() => {
       count++;
     }
   }
+  // County comparisons — top 30 by population
+  const topCounties = childcareDb.prepare(
+    'SELECT slug FROM counties WHERE population IS NOT NULL ORDER BY population DESC LIMIT 30'
+  ).all().map(r => r.slug);
+
+  for (let i = 0; i < topCounties.length; i++) {
+    for (let j = i + 1; j < topCounties.length; j++) {
+      const [a, b] = [topCounties[i], topCounties[j]].sort();
+      insertComparison.run(a, b, 'county');
+      count++;
+    }
+  }
+
   return count;
 });
 const compCount = insertComparisons();
@@ -190,6 +237,7 @@ console.log(`Inserted ${compCount} popular comparisons`);
 costDb.close();
 wageDb.close();
 crimeDb.close();
+childcareDb.close();
 db.close();
 
 console.log(`\nDone! Output: ${OUT}`);

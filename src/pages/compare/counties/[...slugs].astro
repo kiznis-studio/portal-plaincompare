@@ -1,0 +1,403 @@
+---
+import Base from '../../../layouts/Base.astro';
+import AdSlot from '../../../components/ads/AdSlot.astro';
+import { getCountyBySlug, getCountyComparisonData } from '../../../lib/db';
+import { formatMoney, formatNumber, formatPercent, formatRpp, rateValue } from '../../../lib/format';
+import type { CountyComparisonData } from '../../../lib/types';
+
+const { slugs } = Astro.params;
+if (!slugs) return Astro.redirect('/');
+
+const parts = slugs.split('-vs-');
+if (parts.length !== 2) return Astro.redirect('/counties');
+
+const [slugA, slugB] = parts.sort();
+const canonical = slugA + '-vs-' + slugB;
+if (slugs !== canonical) return Astro.redirect(`/compare/counties/${canonical}`, 301);
+
+const env = Astro.locals.runtime.env;
+const [countyA, countyB] = await Promise.all([
+  getCountyBySlug(env.DB, slugA),
+  getCountyBySlug(env.DB, slugB),
+]);
+
+if (!countyA || !countyB) return Astro.redirect('/counties');
+
+const [dataA, dataB] = await Promise.all([
+  getCountyComparisonData(env, countyA),
+  getCountyComparisonData(env, countyB),
+]);
+
+const nameA = countyA.name;
+const nameB = countyB.name;
+
+function winner(valA: number | null | undefined, valB: number | null | undefined, lowerBetter = false): 'a' | 'b' | null {
+  if (valA == null || valB == null) return null;
+  if (Math.abs(valA - valB) < 0.01) return null;
+  if (lowerBetter) return valA < valB ? 'a' : 'b';
+  return valA > valB ? 'a' : 'b';
+}
+
+function badge(w: 'a' | 'b' | null, side: 'a' | 'b') {
+  if (w === null) return '';
+  return w === side ? 'text-teal-600 dark:text-teal-400 font-semibold' : 'text-[var(--color-text-secondary)]';
+}
+
+const violentRateA = rateValue(dataA.crime?.violent_crime ?? null, dataA.crime?.population ?? null);
+const violentRateB = rateValue(dataB.crime?.violent_crime ?? null, dataB.crime?.population ?? null);
+const propertyRateA = rateValue(dataA.crime?.property_crime ?? null, dataA.crime?.population ?? null);
+const propertyRateB = rateValue(dataB.crime?.property_crime ?? null, dataB.crime?.population ?? null);
+
+const faqSchema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: `How do childcare costs compare between ${nameA} and ${nameB}?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: dataA.childcare && dataB.childcare
+          ? `Center-based infant care costs $${dataA.childcare.center_infant?.toLocaleString()}/yr in ${nameA} vs $${dataB.childcare.center_infant?.toLocaleString()}/yr in ${nameB}.`
+          : 'Childcare cost data is not available for one or both counties.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: `What is the rent difference between ${nameA} and ${nameB}?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: dataA.rent && dataB.rent
+          ? `A 2-bedroom costs $${dataA.rent.br2?.toLocaleString()}/mo in ${nameA} vs $${dataB.rent.br2?.toLocaleString()}/mo in ${nameB}.`
+          : 'Rent data is not available for one or both counties.'
+      }
+    },
+  ]
+});
+---
+
+<Base
+  title={`${nameA} vs ${nameB} — County Comparison`}
+  description={`Compare ${nameA} (${countyA.state_abbr}) and ${nameB} (${countyB.state_abbr}) across childcare costs, rent, wages, crime, schools, and more.`}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Counties', href: '/counties' }, { name: `${nameA} vs ${nameB}` }]}
+>
+  <script type="application/ld+json" set:html={faqSchema} />
+
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/counties" class="hover:text-[var(--color-primary)]">Counties</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">{nameA} vs {nameB}</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">County-level comparison across childcare, rent, and state-level data for wages, crime, schools, and environment.</p>
+
+    <!-- County Overview -->
+    <div class="mb-8 grid grid-cols-2 gap-4">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
+        <h3 class="font-semibold text-sm mb-1">{nameA}</h3>
+        <p class="text-xs text-[var(--color-text-secondary)]">{countyA.state_name}</p>
+        {countyA.population && <p class="text-xs text-[var(--color-text-secondary)] mt-1">Pop: {countyA.population.toLocaleString()}</p>}
+        {dataA.childcare?.median_income && <p class="text-xs text-[var(--color-text-secondary)]">Median Income: {formatMoney(dataA.childcare.median_income)}</p>}
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
+        <h3 class="font-semibold text-sm mb-1">{nameB}</h3>
+        <p class="text-xs text-[var(--color-text-secondary)]">{countyB.state_name}</p>
+        {countyB.population && <p class="text-xs text-[var(--color-text-secondary)] mt-1">Pop: {countyB.population.toLocaleString()}</p>}
+        {dataB.childcare?.median_income && <p class="text-xs text-[var(--color-text-secondary)]">Median Income: {formatMoney(dataB.childcare.median_income)}</p>}
+      </div>
+    </div>
+
+    <!-- Childcare Costs (TRUE county data) -->
+    {dataA.childcare && dataB.childcare && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>👶</span> Childcare Costs (Annual)
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-medium">County data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          Actual county-level childcare costs from the Department of Labor.
+          <a href="https://plainchildcare.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">PlainChildcare →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Care Type</th>
+                <th class="pb-2 font-medium text-right">{nameA}</th>
+                <th class="pb-2 font-medium text-right">{nameB}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Infant (Center)', a: dataA.childcare.center_infant, b: dataB.childcare.center_infant },
+                { label: 'Toddler (Center)', a: dataA.childcare.center_toddler, b: dataB.childcare.center_toddler },
+                { label: 'Preschool (Center)', a: dataA.childcare.center_preschool, b: dataB.childcare.center_preschool },
+                { label: 'School-Age (Center)', a: dataA.childcare.center_school_age, b: dataB.childcare.center_school_age },
+                { label: 'Infant (Family)', a: dataA.childcare.family_infant, b: dataB.childcare.family_infant },
+                { label: 'Toddler (Family)', a: dataA.childcare.family_toddler, b: dataB.childcare.family_toddler },
+                { label: 'Preschool (Family)', a: dataA.childcare.family_preschool, b: dataB.childcare.family_preschool },
+                { label: 'School-Age (Family)', a: dataA.childcare.family_school_age, b: dataB.childcare.family_school_age },
+              ].map(row => {
+                const w = winner(row.a, row.b, true);
+                return (
+                  <tr class="border-b border-[var(--color-border)]">
+                    <td class="py-3 font-medium">{row.label}</td>
+                    <td class={`py-3 text-right ${badge(w, 'a')}`}>{formatMoney(row.a)}/yr</td>
+                    <td class={`py-3 text-right ${badge(w, 'b')}`}>{formatMoney(row.b)}/yr</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Rent (TRUE county data) -->
+    {dataA.rent && dataB.rent && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>🏠</span> Rent (Fair Market Rent)
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-medium">County data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          Actual county-level HUD Fair Market Rents.
+          <a href="https://plainrent.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">PlainRent →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Bedrooms</th>
+                <th class="pb-2 font-medium text-right">{nameA}</th>
+                <th class="pb-2 font-medium text-right">{nameB}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Studio', a: dataA.rent.br0, b: dataB.rent.br0 },
+                { label: '1 Bedroom', a: dataA.rent.br1, b: dataB.rent.br1 },
+                { label: '2 Bedroom', a: dataA.rent.br2, b: dataB.rent.br2 },
+                { label: '3 Bedroom', a: dataA.rent.br3, b: dataB.rent.br3 },
+                { label: '4 Bedroom', a: dataA.rent.br4, b: dataB.rent.br4 },
+              ].map(row => {
+                const w = winner(row.a, row.b, true);
+                return (
+                  <tr class="border-b border-[var(--color-border)]">
+                    <td class="py-3 font-medium">{row.label}</td>
+                    <td class={`py-3 text-right ${badge(w, 'a')}`}>{formatMoney(row.a)}/mo</td>
+                    <td class={`py-3 text-right ${badge(w, 'b')}`}>{formatMoney(row.b)}/mo</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <AdSlot slot="mid" />
+
+    <!-- Cost of Living (State fallback) -->
+    {dataA.cost && dataB.cost && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>💰</span> Cost of Living
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">State data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          State-level data for {countyA.state_name} and {countyB.state_name} (county data not available).
+          <a href="https://plaincost.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">PlainCost →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Category</th>
+                <th class="pb-2 font-medium text-right">{countyA.state_abbr}</th>
+                <th class="pb-2 font-medium text-right">{countyB.state_abbr}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Overall RPP', a: dataA.cost.rpp_all, b: dataB.cost.rpp_all },
+                { label: 'Goods', a: dataA.cost.rpp_goods, b: dataB.cost.rpp_goods },
+                { label: 'Services', a: dataA.cost.rpp_services, b: dataB.cost.rpp_services },
+                { label: 'Rents', a: dataA.cost.rpp_rents, b: dataB.cost.rpp_rents },
+              ].map(row => {
+                const w = winner(row.a, row.b, true);
+                return (
+                  <tr class="border-b border-[var(--color-border)]">
+                    <td class="py-3 font-medium">{row.label}</td>
+                    <td class={`py-3 text-right ${badge(w, 'a')}`}>{formatRpp(row.a)}</td>
+                    <td class={`py-3 text-right ${badge(w, 'b')}`}>{formatRpp(row.b)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Wages (State fallback) -->
+    {dataA.wages && dataB.wages && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>💼</span> Wages & Employment
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">State data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          State-level data for {countyA.state_name} and {countyB.state_name} (county data not available).
+          <a href="https://wagedex.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">WageDex →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Metric</th>
+                <th class="pb-2 font-medium text-right">{countyA.state_abbr}</th>
+                <th class="pb-2 font-medium text-right">{countyB.state_abbr}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Avg Median Salary</td>
+                <td class={`py-3 text-right ${badge(winner(dataA.wages.median_salary, dataB.wages.median_salary), 'a')}`}>{formatMoney(dataA.wages.median_salary)}</td>
+                <td class={`py-3 text-right ${badge(winner(dataA.wages.median_salary, dataB.wages.median_salary), 'b')}`}>{formatMoney(dataB.wages.median_salary)}</td>
+              </tr>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Total Employment</td>
+                <td class="py-3 text-right">{formatNumber(dataA.wages.total_employment)}</td>
+                <td class="py-3 text-right">{formatNumber(dataB.wages.total_employment)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Crime (State fallback) -->
+    {dataA.crime && dataB.crime && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>🛡️</span> Crime Rates
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">State data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          State-level data for {countyA.state_name} and {countyB.state_name} (county data not available).
+          <a href="https://plaincrime.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">PlainCrime →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Crime Type (per 100K)</th>
+                <th class="pb-2 font-medium text-right">{countyA.state_abbr}</th>
+                <th class="pb-2 font-medium text-right">{countyB.state_abbr}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Violent Crime</td>
+                <td class={`py-3 text-right ${badge(winner(violentRateA, violentRateB, true), 'a')}`}>{violentRateA?.toFixed(1) ?? 'N/A'}</td>
+                <td class={`py-3 text-right ${badge(winner(violentRateA, violentRateB, true), 'b')}`}>{violentRateB?.toFixed(1) ?? 'N/A'}</td>
+              </tr>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Property Crime</td>
+                <td class={`py-3 text-right ${badge(winner(propertyRateA, propertyRateB, true), 'a')}`}>{propertyRateA?.toFixed(1) ?? 'N/A'}</td>
+                <td class={`py-3 text-right ${badge(winner(propertyRateA, propertyRateB, true), 'b')}`}>{propertyRateB?.toFixed(1) ?? 'N/A'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Schools (State fallback) -->
+    {dataA.schools && dataB.schools && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>🎓</span> Schools
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">State data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          State-level data for {countyA.state_name} and {countyB.state_name} (county data not available).
+          <a href="https://plainschools.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">PlainSchools →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Metric</th>
+                <th class="pb-2 font-medium text-right">{countyA.state_abbr}</th>
+                <th class="pb-2 font-medium text-right">{countyB.state_abbr}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Total Schools</td>
+                <td class="py-3 text-right">{formatNumber(dataA.schools.num_schools)}</td>
+                <td class="py-3 text-right">{formatNumber(dataB.schools.num_schools)}</td>
+              </tr>
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">Student-Teacher Ratio</td>
+                <td class={`py-3 text-right ${badge(winner(dataA.schools.avg_student_teacher_ratio, dataB.schools.avg_student_teacher_ratio, true), 'a')}`}>{dataA.schools.avg_student_teacher_ratio?.toFixed(1) ?? 'N/A'}:1</td>
+                <td class={`py-3 text-right ${badge(winner(dataA.schools.avg_student_teacher_ratio, dataB.schools.avg_student_teacher_ratio, true), 'b')}`}>{dataB.schools.avg_student_teacher_ratio?.toFixed(1) ?? 'N/A'}:1</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Environment (State fallback) -->
+    {dataA.enviro && dataB.enviro && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-1 flex items-center gap-2">
+          <span>🌿</span> Environment
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">State data</span>
+        </h2>
+        <p class="text-xs text-[var(--color-text-secondary)] mb-4">
+          State-level data for {countyA.state_name} and {countyB.state_name} (county data not available).
+          <a href="https://plainenviro.com" class="text-[var(--color-primary)]" target="_blank" rel="noopener">PlainEnviro →</a>
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Metric</th>
+                <th class="pb-2 font-medium text-right">{countyA.state_abbr}</th>
+                <th class="pb-2 font-medium text-right">{countyB.state_abbr}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'EPA Facilities', a: dataA.enviro.num_facilities, b: dataB.enviro.num_facilities, lower: true },
+                { label: 'Superfund Sites', a: dataA.enviro.num_superfund_sites, b: dataB.enviro.num_superfund_sites, lower: true },
+                { label: 'Water Violations', a: dataA.enviro.num_violations, b: dataB.enviro.num_violations, lower: true },
+              ].map(row => {
+                const w = winner(row.a, row.b, row.lower);
+                return (
+                  <tr class="border-b border-[var(--color-border)]">
+                    <td class="py-3 font-medium">{row.label}</td>
+                    <td class={`py-3 text-right ${badge(w, 'a')}`}>{formatNumber(row.a)}</td>
+                    <td class={`py-3 text-right ${badge(w, 'b')}`}>{formatNumber(row.b)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <p class="text-xs text-[var(--color-text-secondary)] mb-4 italic">
+      Childcare and rent use actual county-level data. Cost of living, wages, crime, schools, and environment data shown at state level where county-specific data is not available.
+    </p>
+
+    <div class="mt-8 pt-8 border-t border-[var(--color-border)] text-sm text-[var(--color-text-secondary)]">
+      <p>Data from DOL, HUD, BEA, BLS, FBI UCR, NCES, and EPA. Not affiliated with the U.S. Government.</p>
+    </div>
+  </section>
+</Base>
