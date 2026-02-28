@@ -60,7 +60,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
     </div>
   `;
 
-  return new ImageResponse(html, {
+  const response = new ImageResponse(html, {
     width: 1200,
     height: 630,
     fonts: [
@@ -72,4 +72,6 @@ export const GET: APIRoute = async ({ params, locals }) => {
       },
     ],
   });
+  response.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+  return response;
 };
