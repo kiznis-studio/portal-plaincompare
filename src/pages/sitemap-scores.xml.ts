@@ -3,8 +3,7 @@ import { getAllLifeScoreRankings } from '../lib/db';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ site, locals }) => {
-  const base = site?.href || 'https://plaincompare.com/';
+export const GET: APIRoute = async ({ locals }) => {
   const db = (locals as any).runtime.env.DB;
 
   const [metros, states] = await Promise.all([
@@ -13,14 +12,14 @@ export const GET: APIRoute = async ({ site, locals }) => {
   ]);
 
   const urls: string[] = [];
-  urls.push(`${base}score`);
-  urls.push(`${base}score/rankings`);
+  urls.push(`${BASE}/score`);
+  urls.push(`${BASE}/score/rankings`);
 
   for (const m of metros) {
-    urls.push(`${base}score/${m.slug}`);
+    urls.push(`${BASE}/score/${m.slug}`);
   }
   for (const s of states) {
-    urls.push(`${base}score/states/${s.slug}`);
+    urls.push(`${BASE}/score/states/${s.slug}`);
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

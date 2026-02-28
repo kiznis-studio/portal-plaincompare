@@ -1,8 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getPopularComparisons } from '../lib/db';
 
-export const GET: APIRoute = async ({ locals, site }) => {
-  const base = site?.href || 'https://plaincompare.com/';
+export const GET: APIRoute = async ({ locals }) => {
   const db = locals.runtime.env.DB;
 
   const [metroComps, stateComps] = await Promise.all([
@@ -11,10 +10,10 @@ export const GET: APIRoute = async ({ locals, site }) => {
   ]);
 
   const metroUrls = metroComps.map(c =>
-    `  <url><loc>${base}compare/${c.slug_a}-vs-${c.slug_b}</loc><changefreq>monthly</changefreq></url>`
+    `  <url><loc>${BASE}/compare/${c.slug_a}-vs-${c.slug_b}</loc><changefreq>monthly</changefreq></url>`
   );
   const stateUrls = stateComps.map(c =>
-    `  <url><loc>${base}compare/states/${c.slug_a}-vs-${c.slug_b}</loc><changefreq>monthly</changefreq></url>`
+    `  <url><loc>${BASE}/compare/states/${c.slug_a}-vs-${c.slug_b}</loc><changefreq>monthly</changefreq></url>`
   );
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
