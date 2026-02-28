@@ -6,9 +6,9 @@ export const GET: APIRoute = async ({ request, locals }) => {
   const q = url.searchParams.get('q')?.trim() || '';
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
 
-  if (!q) {
+  if (!q || q.length < 2) {
     return new Response(JSON.stringify({ metros: [], states: [] }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' },
     });
   }
 
