@@ -1,6 +1,14 @@
 // PlainCompare cross-database query library
 // All functions accept D1Database bindings — NEVER at module scope
 
+// --- Targeted query cache (permanent, for expensive bulk/aggregate queries) ---
+const queryCache = new Map<string, any>();
+export function getQueryCacheSize(): number { return queryCache.size; }
+function cached<T>(key: string, compute: () => Promise<T>): Promise<T> {
+  if (queryCache.has(key)) return Promise.resolve(queryCache.get(key) as T);
+  return compute().then(result => { queryCache.set(key, result); return result; });
+}
+
 import type {
   Metro, State, PopularComparison, County, LifeScore,
   CostData, RentData, CrimeData, WageData,
@@ -15,8 +23,10 @@ export async function getMetroBySlug(db: D1Database, slug: string): Promise<Metr
 }
 
 export async function getAllMetros(db: D1Database): Promise<Metro[]> {
-  const { results } = await db.prepare('SELECT * FROM metros ORDER BY name COLLATE NOCASE').all<Metro>();
-  return results;
+  return cached('getAllMetros', async () => {
+    const { results } = await db.prepare('SELECT * FROM metros ORDER BY name COLLATE NOCASE').all<Metro>();
+    return results;
+  });
 }
 
 export async function getStateBySlug(db: D1Database, slug: string): Promise<State | null> {
@@ -68,17 +78,21 @@ export async function getStateCost(db: D1Database, abbr: string): Promise<CostDa
 }
 
 export async function getAllStateCosts(db: D1Database): Promise<(CostData & { abbr: string; name: string; slug: string })[]> {
-  const { results } = await db.prepare(
-    'SELECT abbr, name, slug, rpp_all, rpp_goods, rpp_services, rpp_rents, year FROM states ORDER BY name COLLATE NOCASE'
-  ).all();
-  return results as any;
+  return cached('getAllStateCosts', async () => {
+    const { results } = await db.prepare(
+      'SELECT abbr, name, slug, rpp_all, rpp_goods, rpp_services, rpp_rents, year FROM states ORDER BY name COLLATE NOCASE'
+    ).all();
+    return results as any;
+  });
 }
 
 export async function getAllMetroCosts(db: D1Database): Promise<(CostData & { cbsa: string; name: string; slug: string })[]> {
-  const { results } = await db.prepare(
-    'SELECT cbsa, name, slug, rpp_all, rpp_goods, rpp_services, rpp_rents, year FROM msas ORDER BY name COLLATE NOCASE'
-  ).all();
-  return results as any;
+  return cached('getAllMetroCosts', async () => {
+    const { results } = await db.prepare(
+      'SELECT cbsa, name, slug, rpp_all, rpp_goods, rpp_services, rpp_rents, year FROM msas ORDER BY name COLLATE NOCASE'
+    ).all();
+    return results as any;
+  });
 }
 
 // ---- Rent (PlainRent DB) ----
@@ -123,15 +137,17 @@ export async function getStateCrime(db: D1Database, stateAbbr: string): Promise<
 }
 
 export async function getAllStateCrime(db: D1Database): Promise<(CrimeData & { state_abbr: string; state_name: string; slug: string })[]> {
-  const { results } = await db.prepare(`
-    SELECT s.state_abbr, s.state_name, s.slug, sc.violent_crime, sc.property_crime,
-           sc.murder, sc.robbery, sc.burglary, sc.population, sc.year
-    FROM state_crime sc
-    JOIN states s ON sc.state_fips = s.state_fips
-    WHERE sc.year = (SELECT MAX(year) FROM state_crime)
-    ORDER BY s.state_name COLLATE NOCASE
-  `).all();
-  return results as any;
+  return cached('getAllStateCrime', async () => {
+    const { results } = await db.prepare(`
+      SELECT s.state_abbr, s.state_name, s.slug, sc.violent_crime, sc.property_crime,
+             sc.murder, sc.robbery, sc.burglary, sc.population, sc.year
+      FROM state_crime sc
+      JOIN states s ON sc.state_fips = s.state_fips
+      WHERE sc.year = (SELECT MAX(year) FROM state_crime)
+      ORDER BY s.state_name COLLATE NOCASE
+    `).all();
+    return results as any;
+  });
 }
 
 // ---- Wages (WageDex DB) ----
@@ -224,19 +240,21 @@ export async function getStateSchools(db: D1Database, stateAbbr: string): Promis
 }
 
 export async function getAllStateSchools(db: D1Database): Promise<(SchoolsData & { state_abbr: string; state_name: string; slug: string })[]> {
-  const { results } = await db.prepare(`
-    SELECT s.state_abbr, s.state_name, s.slug,
-           COUNT(*) as num_schools,
-           CAST(SUM(sc.enrollment) AS INTEGER) as total_enrollment,
-           ROUND(AVG(sc.student_teacher_ratio), 1) as avg_student_teacher_ratio,
-           ROUND(100.0 * SUM(CASE WHEN sc.charter = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as charter_pct,
-           ROUND(100.0 * SUM(CASE WHEN sc.title_i = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as title_i_pct
-    FROM schools sc
-    JOIN states s ON sc.state_fips = s.state_fips
-    GROUP BY s.state_abbr
-    ORDER BY s.state_name COLLATE NOCASE
-  `).all();
-  return results as any;
+  return cached('getAllStateSchools', async () => {
+    const { results } = await db.prepare(`
+      SELECT s.state_abbr, s.state_name, s.slug,
+             COUNT(*) as num_schools,
+             CAST(SUM(sc.enrollment) AS INTEGER) as total_enrollment,
+             ROUND(AVG(sc.student_teacher_ratio), 1) as avg_student_teacher_ratio,
+             ROUND(100.0 * SUM(CASE WHEN sc.charter = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as charter_pct,
+             ROUND(100.0 * SUM(CASE WHEN sc.title_i = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as title_i_pct
+      FROM schools sc
+      JOIN states s ON sc.state_fips = s.state_fips
+      GROUP BY s.state_abbr
+      ORDER BY s.state_name COLLATE NOCASE
+    `).all();
+    return results as any;
+  });
 }
 
 // ---- Childcare (PlainChildcare DB — state level) ----
@@ -253,13 +271,15 @@ export async function getStateChildcare(db: D1Database, abbr: string): Promise<C
 }
 
 export async function getAllStateChildcare(db: D1Database): Promise<(ChildcareData & { abbr: string; name: string; slug: string })[]> {
-  const { results } = await db.prepare(`
-    SELECT abbr, name, slug,
-           avg_center_infant as center_infant, avg_center_toddler as center_toddler,
-           avg_center_preschool as center_preschool
-    FROM states ORDER BY name COLLATE NOCASE
-  `).all();
-  return results as any;
+  return cached('getAllStateChildcare', async () => {
+    const { results } = await db.prepare(`
+      SELECT abbr, name, slug,
+             avg_center_infant as center_infant, avg_center_toddler as center_toddler,
+             avg_center_preschool as center_preschool
+      FROM states ORDER BY name COLLATE NOCASE
+    `).all();
+    return results as any;
+  });
 }
 
 // ---- Environment (PlainEnviro DB — state level) ----
@@ -273,11 +293,13 @@ export async function getStateEnviro(db: D1Database, stateAbbr: string): Promise
 }
 
 export async function getAllStateEnviro(db: D1Database): Promise<(EnviroData & { state_abbr: string; state_name: string; slug: string })[]> {
-  const { results } = await db.prepare(`
-    SELECT state_abbr, state_name, slug, num_facilities, num_water_systems, num_superfund_sites, num_violations
-    FROM states ORDER BY state_name COLLATE NOCASE
-  `).all();
-  return results as any;
+  return cached('getAllStateEnviro', async () => {
+    const { results } = await db.prepare(`
+      SELECT state_abbr, state_name, slug, num_facilities, num_water_systems, num_superfund_sites, num_violations
+      FROM states ORDER BY state_name COLLATE NOCASE
+    `).all();
+    return results as any;
+  });
 }
 
 // ---- Counties (own DB) ----
@@ -381,26 +403,30 @@ export async function getLifeScore(db: D1Database, slug: string): Promise<LifeSc
 }
 
 export async function getTopLifeScores(db: D1Database, type: string, limit = 20): Promise<LifeScore[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC LIMIT ?'
-  ).bind(type, limit).all<LifeScore>();
-  return results;
+  return cached(`getTopLifeScores:${type}:${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC LIMIT ?'
+    ).bind(type, limit).all<LifeScore>();
+    return results;
+  });
 }
 
 export async function getAllLifeScoreRankings(db: D1Database, type: string): Promise<LifeScore[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC'
-  ).bind(type).all<LifeScore>();
-  return results;
+  return cached(`getAllLifeScoreRankings:${type}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC'
+    ).bind(type).all<LifeScore>();
+    return results;
+  });
 }
 
 // ---- Stats for homepage ----
 
 export async function getStats(db: D1Database) {
-  return db.prepare(`
+  return cached('stats', () => db.prepare(`
     SELECT
       (SELECT COUNT(*) FROM metros) as metro_count,
       (SELECT COUNT(*) FROM states) as state_count,
       (SELECT COUNT(*) FROM popular_comparisons) as comparison_count
-  `).first<{ metro_count: number; state_count: number; comparison_count: number }>();
+  `).first<{ metro_count: number; state_count: number; comparison_count: number }>());
 }
