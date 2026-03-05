@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y libsqlite3-0 tini && rm -rf /var/lib/ap
 RUN addgroup --system --gid 1001 app && adduser --system --uid 1001 --ingroup app app
 WORKDIR /app
 COPY --from=builder --chown=app:app /app/dist ./dist
+COPY --from=builder --chown=app:app /app/src/assets/fonts ./src/assets/fonts
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package.json ./
 USER app
