@@ -430,3 +430,22 @@ export async function getStats(db: D1Database) {
       (SELECT COUNT(*) FROM popular_comparisons) as comparison_count
   `).first<{ metro_count: number; state_count: number; comparison_count: number }>());
 }
+
+// Pre-warm all shared query caches at startup.
+// Called by middleware before serving any requests.
+// Multi-DB: each function is called with the correct database binding.
+export async function warmQueryCache(env: Record<string, D1Database>): Promise<number> {
+  const start = Date.now();
+  await Promise.all([
+    getAllMetros(env.DB),
+    getAllStateCosts(env.DB_COST),
+    getAllMetroCosts(env.DB_COST),
+    getAllStateCrime(env.DB_CRIME),
+    getAllStateSchools(env.DB_SCHOOLS),
+    getAllStateChildcare(env.DB_CHILDCARE),
+    getAllStateEnviro(env.DB_ENVIRO),
+    getStats(env.DB),
+  ]);
+  console.log(`[cache] Warmed ${queryCache.size} queries in ${Date.now() - start}ms`);
+  return queryCache.size;
+}
