@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getAllLifeScoreRankings } from '../lib/db';
 
+const BASE = 'https://plaincompare.com';
+
 export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {

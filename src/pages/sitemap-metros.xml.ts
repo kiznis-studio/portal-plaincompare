@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getAllMetros } from '../lib/db';
 
+const BASE = 'https://plaincompare.com';
+
 export const GET: APIRoute = async ({ locals }) => {
   const db = locals.runtime.env.DB;
   const metros = await getAllMetros(db);

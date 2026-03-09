@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getPopularComparisons, getAllCounties } from '../lib/db';
 
+const BASE = 'https://plaincompare.com';
+
 export const GET: APIRoute = async ({ locals }) => {
   const db = (locals as any).runtime.env.DB;
 
