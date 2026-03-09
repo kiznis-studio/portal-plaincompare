@@ -1,0 +1,35 @@
+services:
+  portal-plaincompare:
+    image: ghcr.io/kiznis-studio/portal-plaincompare:latest
+    container_name: portal-plaincompare
+    restart: unless-stopped
+    volumes:
+      - /opt/portals/data/sqlite/plaincompare.db:/data/portal.db:ro
+      - /opt/portals/data/sqlite/plaincost.db:/data/cost.db:ro
+      - /opt/portals/data/sqlite/plainrent.db:/data/rent.db:ro
+      - /opt/portals/data/sqlite/plaincrime.db:/data/crime.db:ro
+      - /opt/portals/data/sqlite/wagedex.db:/data/wage.db:ro
+      - /opt/portals/data/sqlite/plainschools.db:/data/schools.db:ro
+      - /opt/portals/data/sqlite/plainchildcare.db:/data/childcare.db:ro
+      - /opt/portals/data/sqlite/plainenviro.db:/data/enviro.db:ro
+    environment:
+      - DATABASE_PATH=/data/portal.db
+      - DATABASE_COST_PATH=/data/cost.db
+      - DATABASE_RENT_PATH=/data/rent.db
+      - DATABASE_CRIME_PATH=/data/crime.db
+      - DATABASE_WAGE_PATH=/data/wage.db
+      - DATABASE_SCHOOLS_PATH=/data/schools.db
+      - DATABASE_CHILDCARE_PATH=/data/childcare.db
+      - DATABASE_ENVIRO_PATH=/data/enviro.db
+      - HOST=0.0.0.0
+      - PORT=4321
+      - CACHE_ENTRIES=500
+    networks:
+      - portals
+    mem_limit: 384m
+    cpus: 0.5
+
+networks:
+  portals:
+    external: true
+    name: portals-net
