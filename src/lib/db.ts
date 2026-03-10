@@ -444,15 +444,26 @@ export async function getStats(db: D1Database) {
 // Multi-DB: each function is called with the correct database binding.
 export async function warmQueryCache(env: Record<string, D1Database>): Promise<number> {
   const start = Date.now();
+  const stateCosts = await getAllStateCosts(env.DB_COST);
   await Promise.all([
     getAllMetros(env.DB),
-    getAllStateCosts(env.DB_COST),
     getAllMetroCosts(env.DB_COST),
     getAllStateCrime(env.DB_CRIME),
     getAllStateSchools(env.DB_SCHOOLS),
     getAllStateChildcare(env.DB_CHILDCARE),
     getAllStateEnviro(env.DB_ENVIRO),
     getStats(env.DB),
+    getTopLifeScores(env.DB, 'metro'),
+    getTopLifeScores(env.DB, 'state'),
+    getAllLifeScoreRankings(env.DB, 'metro'),
+    getAllLifeScoreRankings(env.DB, 'state'),
+    ...stateCosts.map(s => Promise.all([
+      getStateRent(env.DB, s.abbr),
+      getStateWages(env.DB, s.abbr),
+      getStateSchools(env.DB_SCHOOLS, s.abbr),
+      getStateChildcare(env.DB_CHILDCARE, s.abbr),
+      getStateEnviro(env.DB_ENVIRO, s.abbr),
+    ])),
   ]);
   console.log(`[cache] Warmed ${queryCache.size} queries in ${Date.now() - start}ms`);
   return queryCache.size;
