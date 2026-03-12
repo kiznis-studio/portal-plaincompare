@@ -165,4 +165,11 @@ const categories = [
       'query-input': 'required name=search_term_string',
     },
   })} />
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "PlainCompare",
+    "url": "https://plaincompare.com",
+    "description": "Cross-portal city comparison tool combining data from multiple federal sources."
+  })} />
 </Base>
