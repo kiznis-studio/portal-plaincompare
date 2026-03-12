@@ -82,6 +82,8 @@ db.exec(`
   CREATE INDEX idx_counties_state ON counties(state_abbr);
   CREATE INDEX idx_life_scores_type ON life_scores(type);
   CREATE INDEX idx_life_scores_composite ON life_scores(composite_score DESC);
+  CREATE INDEX IF NOT EXISTS idx_life_scores_type_score ON life_scores(type, composite_score DESC);
+  CREATE INDEX IF NOT EXISTS idx_metros_state_slug ON metros(state_abbr, slug);
 `);
 
 // ---- METROS (from PlainCost as canonical source) ----
@@ -507,6 +509,9 @@ childcareDb.close();
 schoolsDb.close();
 enviroDb.close();
 rentDb.close();
-db.close();
+  db.prepare("ANALYZE").run();
+  db.pragma("journal_mode = DELETE");
+  db.prepare("VACUUM").run();
+  db.close();
 
 console.log(`\nDone! Output: ${OUT}`);
