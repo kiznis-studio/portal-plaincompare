@@ -386,7 +386,19 @@ const faqSchema = JSON.stringify({
       </p>
     )}
 
-    <div class="mt-8 pt-8 border-t border-[var(--color-border)] text-sm text-[var(--color-text-secondary)]">
+    <!-- Cross-Portal Links -->
+    <div class="mt-8 pt-6 border-t border-[var(--color-border)]">
+      <div class="flex flex-wrap gap-2">
+        <a href={`https://plainrelocate.com/relocate/${slugA}-to-${slugB}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
+          Relocate {nameA} &rarr; {nameB} →
+        </a>
+        <a href={`https://plainrelocate.com/relocate/${slugB}-to-${slugA}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
+          Relocate {nameB} &rarr; {nameA} →
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-4 border-t border-[var(--color-border)] text-sm text-[var(--color-text-secondary)]">
       <p>Data from BEA, HUD, FBI UCR, BLS OES, NCES, DOL, and EPA. Not affiliated with the U.S. Government.</p>
     </div>
   </section>
