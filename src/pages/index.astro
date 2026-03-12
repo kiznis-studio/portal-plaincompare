@@ -172,4 +172,25 @@ const categories = [
     "url": "https://plaincompare.com",
     "description": "Cross-portal city comparison tool combining data from multiple federal sources."
   })} />
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "U.S. Metro Area Comparison Data",
+  "description": "Cross-portal comparison data for 384 metro areas combining cost of living, crime, rent, schools, and more.",
+  "url": "https://plaincompare.com",
+  "keywords": ["metro comparison", "city comparison data", "cost of living comparison", "US metro statistics"],
+  "creator": {
+    "@type": "Organization",
+    "name": "PlainCompare"
+  },
+  "spatialCoverage": "United States",
+  "temporalCoverage": "2023/2025",
+  "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "isAccessibleForFree": true,
+  "distribution": {
+    "@type": "DataDownload",
+    "encodingFormat": "text/html",
+    "contentUrl": "https://plaincompare.com"
+  }
+})} />
 </Base>
