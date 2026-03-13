@@ -388,12 +388,25 @@ const faqSchema = JSON.stringify({
 
     <!-- Cross-Portal Links -->
     <div class="mt-8 pt-6 border-t border-[var(--color-border)]">
+      <h3 class="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-3">Explore Further</h3>
       <div class="flex flex-wrap gap-2">
         <a href={`https://plainrelocate.com/relocate/${slugA}-to-${slugB}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
-          Relocate {nameA} &rarr; {nameB} →
+          Relocate {nameA} → {nameB}
         </a>
         <a href={`https://plainrelocate.com/relocate/${slugB}-to-${slugA}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
-          Relocate {nameB} &rarr; {nameA} →
+          Relocate {nameB} → {nameA}
+        </a>
+        <a href={`https://plainrelocate.com/metro/${slugA}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
+          {nameA} Profile
+        </a>
+        <a href={`https://plainrelocate.com/metro/${slugB}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
+          {nameB} Profile
+        </a>
+        <a href={`https://plaincost.com/metro/${slugA}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
+          {nameA} Cost of Living
+        </a>
+        <a href={`https://plaincost.com/metro/${slugB}`} class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors" target="_blank" rel="noopener">
+          {nameB} Cost of Living
         </a>
       </div>
     </div>
