@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { inflightRequests, eventLoopLag, cacheWarmed, cacheWarmedAt, getCacheStats } from '../middleware';
+import { inflightHuman, inflightBot, eventLoopLag, cacheWarmed, cacheWarmedAt, getCacheStats, getRollingMetrics } from '../middleware';
 import { getQueryCacheSize } from '../lib/db';
 import { dbMeta } from '../lib/d1-adapter';
 
@@ -32,7 +32,8 @@ export const GET: APIRoute = async ({ locals }) => {
     memMB: Math.round(mem.rss / 1048576),
     heapMB: Math.round(mem.heapUsed / 1048576),
     eventLoopLagMs: Math.round(eventLoopLag * 100) / 100,
-    inflight: inflightRequests,
+    inflight: { human: inflightHuman, bot: inflightBot },
+    rolling: getRollingMetrics(),
     dbs: dbResults,
     cache: {
       warmed: cacheWarmed,
