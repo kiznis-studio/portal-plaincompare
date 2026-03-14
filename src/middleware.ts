@@ -1,45 +1,24 @@
 // Multi-DB middleware template — for portals with cross-database queries
-// Uses this instead of middleware.ts when docker-compose has multiple DATABASE_* env vars.
-//
-// How it works: auto-discovers all env vars matching DATABASE_*_PATH or DB_*_PATH,
-// initializes a D1 adapter for each, and exposes them all via context.locals.runtime.env.
-//
-// Env var naming convention:
-//   DATABASE_PATH        → env.DB (primary)
-//   DATABASE_RENT_PATH   → env.DB_RENT
-//   DATABASE_CRIME_PATH  → env.DB_CRIME
-//   DB_COST_PATH         → env.DB_COST
-//   etc.
-//
-// To switch a single-DB portal to multi-DB:
-//   1. Replace src/middleware.ts with this file (rename to middleware.ts)
-//   2. Add volume mounts + env vars to docker-compose.titan.yml
-//   3. Update warmQueryCache in db.ts to accept the env record
-
+// Auto-discovers DATABASE_*_PATH and DB_*_PATH env vars.
+// To switch from single-DB: rename this to middleware.ts, add volume mounts + env vars.
 import { defineMiddleware } from 'astro:middleware';
 import { existsSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
-import { isbot } from 'isbot';
 import { createD1Adapter, type D1Database } from './lib/d1-adapter';
 import { warmQueryCache } from './lib/db';
 
-// --- Multi-DB initialization (auto-discovers DATABASE_*_PATH and DB_*_PATH env vars) ---
+// --- Multi-DB auto-discovery ---
 const dbInstances: Record<string, ReturnType<typeof createD1Adapter> | null> = {};
 
 function discoverDatabases(): Record<string, string> {
   const paths: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (!value) continue;
-    if (key === 'DATABASE_PATH') {
-      paths['DB'] = value;
-    } else if (key.startsWith('DATABASE_') && key.endsWith('_PATH')) {
-      // DATABASE_RENT_PATH → DB_RENT
-      const name = 'DB_' + key.slice('DATABASE_'.length, -'_PATH'.length);
-      paths[name] = value;
+    if (key === 'DATABASE_PATH') { paths['DB'] = value; }
+    else if (key.startsWith('DATABASE_') && key.endsWith('_PATH')) {
+      paths['DB_' + key.slice(9, -5)] = value;
     } else if (key.startsWith('DB_') && key.endsWith('_PATH')) {
-      // DB_COST_PATH → DB_COST
-      const name = key.slice(0, -'_PATH'.length);
-      paths[name] = value;
+      paths[key.slice(0, -5)] = value;
     }
   }
   return paths;
@@ -50,61 +29,44 @@ const DB_PATHS = discoverDatabases();
 function getDb(key: string): ReturnType<typeof createD1Adapter> | null {
   if (key in dbInstances) return dbInstances[key];
   const path = DB_PATHS[key];
-  if (!path || !existsSync(path)) {
-    dbInstances[key] = null;
-    return null;
-  }
+  if (!path || !existsSync(path)) { dbInstances[key] = null; return null; }
   dbInstances[key] = createD1Adapter(path);
   return dbInstances[key];
 }
 
 function getAllDbs(): Record<string, D1Database> {
   const env: Record<string, D1Database> = {};
-  for (const key of Object.keys(DB_PATHS)) {
-    const db = getDb(key);
-    if (db) env[key] = db;
-  }
+  for (const key of Object.keys(DB_PATHS)) { const d = getDb(key); if (d) env[key] = d; }
   return env;
 }
 
-console.log(`[middleware] Multi-DB: discovered ${Object.keys(DB_PATHS).length} databases: ${Object.keys(DB_PATHS).join(', ')}`);
+console.log(`[middleware] Multi-DB: ${Object.keys(DB_PATHS).length} databases: ${Object.keys(DB_PATHS).join(', ')}`);
 
-// --- Inflight tracking (metrics only — no rate limiting) ---
-// We don't rate-limit bots. Fast renders + CF edge cache handle the load.
-// These counters exist for /health metrics and TRM demand scoring.
-let inflightHuman = 0;
-let inflightBot = 0;
+// --- Inflight counter ---
+let inflight = 0;
 
-// --- Event loop lag tracking ---
+// --- Event loop lag (sampled every 2s) ---
 let eventLoopLag = 0;
 const lagInterval = setInterval(() => {
-  const start = performance.now();
-  setImmediate(() => { eventLoopLag = performance.now() - start; });
-}, 1000);
+  const s = performance.now();
+  setImmediate(() => { eventLoopLag = performance.now() - s; });
+}, 2000);
 lagInterval.unref();
 
-// --- Rolling demand metrics (15s window) ---
-interface RequestSample { ts: number; latency: number; }
-const samples: RequestSample[] = [];
-const WINDOW_MS = 15000;
+// --- Rolling demand metrics (15s window, counter-based) ---
+let reqCount = 0;
+let latencySum = 0;
+let windowStart = Date.now();
 
-function recordRequest(latencyMs: number) {
-  const now = Date.now();
-  samples.push({ ts: now, latency: latencyMs });
-  const cutoff = now - WINDOW_MS;
-  while (samples.length > 0 && samples[0].ts < cutoff) samples.shift();
-}
+function recordRequest(latencyMs: number) { reqCount++; latencySum += latencyMs; }
 
 function getRollingMetrics() {
   const now = Date.now();
-  const cutoff = now - WINDOW_MS;
-  while (samples.length > 0 && samples[0].ts < cutoff) samples.shift();
-  if (samples.length === 0) return { requestRate: 0, avgLatency: 0 };
-  const latencySum = samples.reduce((sum, s) => sum + s.latency, 0);
-  return {
-    requestRate: Math.round(samples.length / (WINDOW_MS / 1000) * 100) / 100,
-    avgLatency: Math.round(latencySum / samples.length),
-  };
+  const elapsed = (now - windowStart) / 1000;
+  const rate = elapsed > 0 ? Math.round(reqCount / elapsed * 100) / 100 : 0;
+  const avg = reqCount > 0 ? Math.round(latencySum / reqCount) : 0;
+  if (now - windowStart > 15000) { reqCount = 0; latencySum = 0; windowStart = now; }
+  return { requestRate: rate, avgLatency: avg };
 }
 
 // --- Cache warming ---
@@ -119,9 +81,12 @@ async function ensureWarmed(): Promise<void> {
       const env = getAllDbs();
       if (Object.keys(env).length === 0) { cacheWarmed = true; return; }
       try {
-        // Multi-DB warmup: pass the full env record
-        // warmQueryCache should accept either D1Database or Record<string, D1Database>
-        await warmQueryCache(env.DB || Object.values(env)[0]!, env);
+        // Multi-DB: pass full env to warmQueryCache
+        // warmQueryCache signature varies per portal:
+        //   (db: D1Database) for single-DB warmup
+        //   (env: Record<string, D1Database>) for multi-DB warmup
+        const primary = env.DB || Object.values(env)[0]!;
+        await (warmQueryCache as any)(primary, env);
         cacheWarmedAt = new Date().toISOString();
       } catch (err) {
         console.error('[cache] Warming failed:', err);
@@ -131,139 +96,105 @@ async function ensureWarmed(): Promise<void> {
   }
   await warmingPromise;
 }
-
 ensureWarmed();
 
 // --- Compressed LRU response cache ---
-interface CacheEntry {
-  compressed: Buffer;
-  headers: Record<string, string>;
-  hits: number;
-  size: number;
-}
+interface CacheEntry { compressed: Buffer; contentType: string; cacheControl: string; hits: number; }
 const responseCache = new Map<string, CacheEntry>();
-const MAX_CACHE_ENTRIES = parseInt(process.env.CACHE_ENTRIES || '5000', 10);
+const MAX_CACHE = parseInt(process.env.CACHE_ENTRIES || '5000', 10);
 let totalHits = 0;
 let totalMisses = 0;
 
-function getCachedResponse(key: string): Response | null {
+function getCached(key: string): Response | null {
   const entry = responseCache.get(key);
   if (!entry) { totalMisses++; return null; }
   responseCache.delete(key);
   entry.hits++;
   responseCache.set(key, entry);
   totalHits++;
-  try {
-    const html = gunzipSync(entry.compressed);
-    const prefix = html.subarray(0, 15).toString();
-    if (!prefix.includes('<!') && !prefix.includes('<html')) {
-      console.error(`[cache] Corrupt entry for ${key} — purging`);
-      responseCache.delete(key);
-      return null;
-    }
-    return new Response(html, {
-      headers: { ...entry.headers, 'X-Cache': 'HIT' },
-    });
-  } catch (e) {
-    console.error(`[cache] Decompress failed for ${key}: ${(e as Error).message}`);
-    responseCache.delete(key);
-    return null;
-  }
+  return new Response(gunzipSync(entry.compressed), {
+    headers: { 'Content-Type': entry.contentType, 'Cache-Control': entry.cacheControl, 'X-Cache': 'HIT' },
+  });
 }
 
-function cacheResponse(key: string, body: string, headers: Record<string, string>) {
-  if (!body || body.length < 50 || (!body.startsWith('<!') && !body.startsWith('<html'))) return;
+function setCache(key: string, body: string, contentType: string, cacheControl: string) {
+  if (!body || body.length < 50 || body.charCodeAt(0) !== 60) return;
   if (responseCache.has(key)) responseCache.delete(key);
-  if (responseCache.size >= MAX_CACHE_ENTRIES) {
+  if (responseCache.size >= MAX_CACHE) {
     const firstKey = responseCache.keys().next().value;
     if (firstKey) responseCache.delete(firstKey);
   }
-  try {
-    const compressed = gzipSync(body, { level: 6 });
-    const { 'Content-Length': _, ...safeHeaders } = headers;
-    responseCache.set(key, { compressed, headers: safeHeaders, hits: 0, size: body.length });
-  } catch { /* skip caching */ }
+  responseCache.set(key, { compressed: gzipSync(body, { level: 1 }), contentType, cacheControl, hits: 0 });
 }
 
 function getCacheStats() {
-  const entries: Array<{ url: string; hits: number }> = [];
-  for (const [key, entry] of responseCache) entries.push({ url: key, hits: entry.hits });
-  entries.sort((a, b) => b.hits - a.hits);
+  const top: Array<{ url: string; hits: number }> = [];
+  for (const [k, v] of responseCache) top.push({ url: k, hits: v.hits });
+  top.sort((a, b) => b.hits - a.hits);
+  const total = totalHits + totalMisses;
   return {
-    size: responseCache.size,
-    maxSize: MAX_CACHE_ENTRIES,
-    totalHits,
-    totalMisses,
-    hitRate: (totalHits + totalMisses) > 0 ? Math.round((totalHits / (totalHits + totalMisses)) * 1000) / 1000 : 0,
-    top10: entries.slice(0, 10),
+    size: responseCache.size, maxSize: MAX_CACHE,
+    totalHits, totalMisses,
+    hitRate: total > 0 ? Math.round(totalHits / total * 1000) / 1000 : 0,
+    top10: top.slice(0, 10),
   };
 }
 
-export { inflightHuman, inflightBot, eventLoopLag, responseCache, cacheWarmed, cacheWarmedAt, getCacheStats, getRollingMetrics };
+export { inflight, eventLoopLag, cacheWarmed, cacheWarmedAt, getCacheStats, getRollingMetrics };
 
-function getEdgeTtl(path: string): number {
-  if (path.match(/^\/(provider|employer|school|facility|drug|breed|county|city|metro|state|airport|lender|system|occupation|company|chapter|product|zip|compare)\//)) return 86400;
-  if (path.match(/^\/(rankings|guides|states|metros|counties|cities)\//)) return 21600;
+function getEdgeTtl(p: string): number {
+  const c = p.charCodeAt(1);
+  if (c === 112 || c === 101 || c === 102 || c === 100 || c === 98 || c === 97 ||
+      c === 108 || c === 111 || c === 106 || c === 122) return 86400;
+  if (p.startsWith('/s') || p.startsWith('/c') || p.startsWith('/m')) return 86400;
+  if (p.startsWith('/ranking') || p.startsWith('/guide')) return 21600;
   return 3600;
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const path = context.url.pathname;
-  // Expose ALL databases to page components
   (context.locals as any).runtime = { env: getAllDbs() };
 
   if (path === '/health') {
     if (!cacheWarmed) {
       ensureWarmed();
-      return new Response(JSON.stringify({ status: 'warming' }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      return new Response('{"status":"warming"}', {
+        status: 503, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
       });
     }
     return next();
   }
 
-  if (path.startsWith('/_astro/') || path.startsWith('/favicon') || path.startsWith('/_cluster')) return next();
+  if (path.charCodeAt(1) === 95) return next();
+  if (path.startsWith('/fav')) return next();
   if (!cacheWarmed) await ensureWarmed();
 
   if (context.request.method === 'GET') {
     const cacheKey = path + context.url.search;
-    const cached = getCachedResponse(cacheKey);
+    const cached = getCached(cacheKey);
     if (cached) return cached;
 
-    const ua = context.request.headers.get('user-agent') || '';
-    const isBotUA = isbot(ua);
-
-    // Track inflight counts (for /health metrics + TRM demand scoring)
-    if (isBotUA) inflightBot++;
-    else inflightHuman++;
-
+    inflight++;
     const start = performance.now();
     try {
       const response = await next();
       const elapsed = performance.now() - start;
       recordRequest(elapsed);
-      if (elapsed > 500) {
-        console.warn(`[slow] ${path} ${Math.round(elapsed)}ms lag=${Math.round(eventLoopLag)}ms`);
-      }
+      if (elapsed > 500) console.warn(`[slow] ${path} ${Math.round(elapsed)}ms lag=${Math.round(eventLoopLag)}ms`);
 
       if (response.status === 200) {
         const ct = response.headers.get('content-type') || '';
         if (ct.includes('text/html') || ct.includes('xml')) {
           const ttl = ct.includes('xml') ? 86400 : getEdgeTtl(path);
           const body = await response.text();
-          const headers: Record<string, string> = {
-            'Content-Type': ct,
-            'Cache-Control': `public, max-age=300, s-maxage=${ttl}`,
-          };
-          cacheResponse(cacheKey, body, headers);
-          return new Response(body, { headers: { ...headers, 'X-Cache': 'MISS' } });
+          const cc = `public, max-age=300, s-maxage=${ttl}`;
+          setCache(cacheKey, body, ct, cc);
+          return new Response(body, { headers: { 'Content-Type': ct, 'Cache-Control': cc, 'X-Cache': 'MISS' } });
         }
       }
       return response;
     } finally {
-      if (isBotUA) inflightBot--;
-      else inflightHuman--;
+      inflight--;
     }
   }
 
