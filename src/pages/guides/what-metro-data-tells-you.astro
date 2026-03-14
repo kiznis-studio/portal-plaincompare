@@ -1,0 +1,75 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+
+const faqItems = [
+  { q: 'What is a Regional Price Parity (RPP)?', a: 'An RPP is the BEA\'s measure of how much goods and services cost in a metro relative to the national average (100). An RPP of 110 means prices are 10% above national average. An RPP of 90 means 10% below. RPPs cover all consumer goods and services, with separate measures for housing, which varies most dramatically.' },
+  { q: 'Why is housing the biggest price differentiator?', a: 'Housing RPPs range from 60 (40% below average) to over 200 (double the average). No other expense category varies this much. A median home in San Jose costs 4x what it costs in Memphis. This is why housing affordability is typically the dominant factor in cost-of-living comparisons.' },
+  { q: 'What crime data does PlainCompare show?', a: 'FBI UCR data covering violent crime (murder, assault, robbery, sexual assault) and property crime (burglary, theft, vehicle theft) rates per 100,000 residents. Rates are more meaningful than counts because they normalize for population size. Some metros don\'t report to the FBI program — PlainCompare notes where data is unavailable.' },
+  { q: 'How should I interpret health data for a metro?', a: 'CDC PLACES data shows the prevalence of health conditions and behaviors at the community level. High obesity or smoking rates indicate population health challenges, not individual risk. These indicators correlate with healthcare demand, insurance costs, and the general health culture of a community.' },
+  { q: 'What does the composite score mean?', a: 'PlainCompare\'s composite score combines multiple data dimensions into a single livability index. It weights affordability, safety, health, education, and environment into a normalized 0-100 scale. The score provides a quick comparison but should not replace dimension-by-dimension analysis — a high composite score can mask weakness in one area you care about deeply.' },
+  { q: 'Can I trust FBI crime data?', a: 'FBI UCR data is the best available national crime dataset, but it has limitations. Not all agencies report in every year. Reporting practices differ between jurisdictions — some agencies are more aggressive about recording crimes than others. Comparing year-over-year trends within a single metro is more reliable than comparing absolute rates between different metros.' },
+];
+---
+
+<Base title="What Metro-Level Data Tells You — Understanding the Dimensions" description="Understanding metropolitan statistical areas, what each data dimension reveals about quality of life, and how to interpret cross-source federal data.">
+  <article class="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">What Metro-Level Data Tells You</h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mb-8">Understanding what each data dimension reveals — and where the numbers have limits.</p>
+
+    <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 mb-8">
+      <p class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Key Takeaway</p>
+      <p class="text-sm text-amber-700 dark:text-amber-300">Metro areas are defined by commuting patterns, not political boundaries — they capture the real economic geography. Cost of living (especially housing) is the most variable dimension, with housing costs differing 4x+ between cheap and expensive metros. Each data source measures something different: wages don't account for cost of living, crime rates don't account for reporting differences, and health data reflects communities, not individuals.</p>
+    </div>
+
+    <div class="prose dark:prose-invert max-w-none space-y-6">
+      <section>
+        <h2>Affordability: Cost of Living vs. Income</h2>
+        <p>Raw salary comparisons are meaningless without cost of living context. A $80,000 salary in Topeka, Kansas (RPP ~87) buys significantly more than $100,000 in Boston (RPP ~115). PlainCompare shows both wages and Regional Price Parities so you can calculate real purchasing power.</p>
+        <p>The formula: <strong>Real income = Nominal income ÷ (RPP / 100)</strong>. An $80,000 salary at RPP 87 equals $91,954 in national-average purchasing power. A $100,000 salary at RPP 115 equals $86,957. The Topeka worker is financially better off despite a lower nominal salary.</p>
+        <p>Browse <a href="/rankings/" class="text-indigo-600 dark:text-indigo-400 hover:underline">metro rankings</a> by affordability to see which areas offer the best value.</p>
+      </section>
+
+      <section>
+        <h2>Safety: Violent and Property Crime</h2>
+        <p>PlainCompare shows FBI crime data broken into violent crime (direct threat to personal safety) and property crime (theft, burglary — financial loss without direct physical threat). These measure very different risks:</p>
+        <ul>
+          <li>A metro with low violent crime but high property crime is generally safe to walk around but has a car theft or package theft problem.</li>
+          <li>A metro with high violent crime but low property crime may have concentrated violence in specific neighborhoods while most areas are safe.</li>
+        </ul>
+        <p>Metro-level crime averages can mask neighborhood variation. Use PlainCompare for initial screening, then research specific neighborhoods within your target metros.</p>
+      </section>
+
+      <section>
+        <h2>Jobs, Education, Health, and Environment</h2>
+        <p><strong>Jobs:</strong> BLS data shows employment levels and wages by occupation. Check whether your specific field is well-represented and well-paid in the metro — aggregate income numbers aren't useful if your industry is absent.</p>
+        <p><strong>Education:</strong> NCES and Census data show school infrastructure and adult educational attainment. High bachelor's degree rates (40%+) correlate with stronger school systems, more professional services, and higher property values.</p>
+        <p><strong>Health:</strong> CDC community health indicators reveal population-level health behaviors and outcomes. These affect your healthcare environment — insurance costs, provider availability, and the health culture of your community.</p>
+        <p><strong>Environment:</strong> EPA air quality data and NOAA climate normals show the physical environment. Air quality affects long-term health, and climate affects daily comfort and energy costs. Check <a href="/metros/" class="text-indigo-600 dark:text-indigo-400 hover:underline">metro pages</a> for the full breakdown.</p>
+      </section>
+
+      <section>
+        <h2>Frequently Asked Questions</h2>
+        <div class="not-prose space-y-3">
+          {faqItems.map(item => (
+            <details class="group border border-gray-200 dark:border-gray-700 rounded-lg">
+              <summary class="cursor-pointer px-4 py-3 font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800">{item.q}</summary>
+              <p class="px-4 pb-4 text-gray-600 dark:text-gray-400 leading-relaxed">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section class="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h2 class="text-lg font-semibold mb-2">Sources</h2>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <li>Bureau of Economic Analysis, FBI UCR, BLS OEWS, Census ACS, NCES, CDC PLACES, EPA AQS</li>
+        </ul>
+      </section>
+
+      <p class="text-xs italic text-gray-500 border-t border-gray-200 dark:border-gray-700 pt-4 mt-8">This content is for informational purposes only. Data represents statistical averages for metropolitan areas and may not reflect conditions in specific neighborhoods.</p>
+    </div>
+  </article>
+
+  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faqItems.map(item => ({ "@type": "Question", "name": item.q, "acceptedAnswer": { "@type": "Answer", "text": item.a } })) })} />
+</Base>

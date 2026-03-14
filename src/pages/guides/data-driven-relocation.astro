@@ -1,0 +1,113 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+
+const faqItems = [
+  { q: 'How many cities should I compare?', a: 'Start broad, then narrow. Use PlainCompare rankings to identify 8-10 metros that meet your baseline criteria. Then do detailed side-by-side comparisons to narrow to 3-5 finalists. Visit your top 2-3 in person before deciding. Data gets you the shortlist; in-person experience makes the final call.' },
+  { q: 'Should I prioritize salary or cost of living?', a: 'Neither alone — prioritize purchasing power, which is salary adjusted for cost of living. A $70,000 salary in Omaha (RPP ~90) provides more purchasing power than $90,000 in Seattle (RPP ~118). PlainCompare shows both numbers so you can calculate real value.' },
+  { q: 'How important is climate data for relocation?', a: 'More than most people expect. Climate affects daily comfort, energy bills, outdoor activity, seasonal depression, and long-term health. Someone who hates cold will be miserable in Minneapolis no matter how affordable it is. Check NOAA climate normals for temperature ranges, precipitation, snow, and sunshine days.' },
+  { q: 'What if my job is remote?', a: 'Remote workers have the rare luxury of optimizing purely for quality of life and affordability. Focus on: low cost of living (maximize purchasing power), reliable internet infrastructure, time zone compatibility with your employer, and quality of life factors that matter to you personally. Remote work unlocks metros that would otherwise be off-limits due to job availability.' },
+  { q: 'How do I account for state taxes?', a: 'State income tax varies from 0% (Texas, Florida, Nevada, etc.) to 13%+ (California). This directly affects take-home pay. A $100,000 salary in Texas keeps roughly $5,000-$8,000 more per year than the same salary in California after state income tax. Property taxes vary even more dramatically by county. PlainCompare shows wage data; cross-reference with state tax information for the complete picture.' },
+  { q: 'When is data not enough?', a: 'Data can\'t capture neighborhood character, social connections, cultural fit, or "feeling at home." It also can\'t predict future growth — a city investing in transit and attracting employers may be much better in 5 years. Use data for the shortlist, but always visit before committing. A weekend visit reveals things no dataset can.' },
+];
+---
+
+<Base title="Data-Driven Relocation Decisions — A Step-by-Step Guide" description="How to use PlainCompare's multi-source federal data to evaluate potential cities before making a move, from shortlisting to final decision.">
+  <article class="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">Data-Driven Relocation Decisions</h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mb-8">How to use federal data to build a shortlist — then let real experience make the final call.</p>
+
+    <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 mb-8">
+      <p class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Key Takeaway</p>
+      <p class="text-sm text-amber-700 dark:text-amber-300">Data eliminates bad choices. A structured comparison across affordability, safety, jobs, education, health, and climate narrows 384 metros to 3-5 strong candidates. From there, visit in person — data gets you the shortlist, experience makes the decision. PlainCompare combines 7 federal data sources to enable this filtering at scale.</p>
+    </div>
+
+    <div class="prose dark:prose-invert max-w-none space-y-6">
+      <section>
+        <h2>The Relocation Framework</h2>
+        <p>Moving to a new city is one of the highest-impact decisions in life. It affects your career, finances, relationships, health, and daily happiness. Yet most people choose where to live based on a job offer, family proximity, or a vacation impression — not systematic analysis. PlainCompare enables a more rigorous approach.</p>
+        <ol>
+          <li><strong>Define your non-negotiables</strong> — the factors you absolutely cannot compromise on.</li>
+          <li><strong>Filter by non-negotiables</strong> — eliminate metros that fail your must-have criteria.</li>
+          <li><strong>Rank by priorities</strong> — weight remaining factors by importance to you.</li>
+          <li><strong>Compare your shortlist</strong> — deep-dive into 3-5 finalists.</li>
+          <li><strong>Visit before deciding</strong> — data confirms the shortlist, experience confirms the choice.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Step 1: Set Non-Negotiables</h2>
+        <p>Non-negotiables are binary — a metro either passes or doesn't. Common non-negotiables:</p>
+        <ul>
+          <li><strong>"I need a job in [industry]":</strong> Eliminate metros without employers in your field. Check <a href="/metros/" class="text-indigo-600 dark:text-indigo-400 hover:underline">metro job data</a>.</li>
+          <li><strong>"I can't afford [housing cost]":</strong> Eliminate metros where median housing exceeds your budget.</li>
+          <li><strong>"Safety is critical":</strong> Eliminate metros above your crime rate threshold.</li>
+          <li><strong>"I need warm weather":</strong> Eliminate metros with cold winters. Check climate normals.</li>
+        </ul>
+        <p>Use PlainCompare's <a href="/rankings/" class="text-indigo-600 dark:text-indigo-400 hover:underline">rankings</a> to quickly identify which metros pass your filters.</p>
+      </section>
+
+      <section>
+        <h2>Step 2: Weight Your Priorities</h2>
+        <p>After filtering, rank remaining factors by how much they matter to you. A simple 1-5 weighting works:</p>
+        <ul>
+          <li><strong>5 = Critical:</strong> This factor dominates my decision.</li>
+          <li><strong>4 = Very important:</strong> Would strongly influence my choice.</li>
+          <li><strong>3 = Important:</strong> Matters but wouldn't be a dealbreaker.</li>
+          <li><strong>2 = Nice to have:</strong> I'd notice but could live without.</li>
+          <li><strong>1 = Don't care:</strong> Irrelevant to my decision.</li>
+        </ul>
+        <p>PlainCompare's <a href="/score/" class="text-indigo-600 dark:text-indigo-400 hover:underline">composite scores</a> use a balanced weighting, but your personal weights may differ significantly. A retiree weights health and climate 5/5 while jobs might be 1/5.</p>
+      </section>
+
+      <section>
+        <h2>Step 3: Deep Compare Finalists</h2>
+        <p>With 3-5 metros remaining, use the <a href="/compare/" class="text-indigo-600 dark:text-indigo-400 hover:underline">side-by-side comparison</a> to evaluate every dimension:</p>
+        <ul>
+          <li>Calculate purchasing power: salary ÷ (RPP ÷ 100) for each metro.</li>
+          <li>Compare crime rates — both violent and property.</li>
+          <li>Check education metrics if you have or plan to have children.</li>
+          <li>Review health indicators — community health patterns affect your environment.</li>
+          <li>Compare climate normals — temperature ranges, precipitation, sunshine.</li>
+        </ul>
+        <p>Create a simple spreadsheet with your weighted scores for each metro. The numbers will likely confirm an intuition you already have — or reveal a surprise you would have missed.</p>
+      </section>
+
+      <section>
+        <h2>Step 4: Visit Before Deciding</h2>
+        <p>Data narrows 384 metros to 3-5 candidates. But no dataset captures the feel of walking through a neighborhood, the energy of a downtown, or the friendliness of strangers. Plan 2-3 day visits to your top choices. During each visit:</p>
+        <ul>
+          <li>Drive through neighborhoods at different times of day.</li>
+          <li>Visit the grocery stores, parks, and amenities you'd actually use.</li>
+          <li>Eat at local restaurants (not chains) to gauge the food culture.</li>
+          <li>Check commute routes during rush hour if you'll be commuting.</li>
+          <li>Talk to locals — ask what they love and what frustrates them.</li>
+        </ul>
+        <p>The best relocation decisions combine data-driven shortlisting with experience-driven final selection.</p>
+      </section>
+
+      <section>
+        <h2>Frequently Asked Questions</h2>
+        <div class="not-prose space-y-3">
+          {faqItems.map(item => (
+            <details class="group border border-gray-200 dark:border-gray-700 rounded-lg">
+              <summary class="cursor-pointer px-4 py-3 font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800">{item.q}</summary>
+              <p class="px-4 pb-4 text-gray-600 dark:text-gray-400 leading-relaxed">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section class="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h2 class="text-lg font-semibold mb-2">Sources</h2>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <li>BEA, FBI, BLS, Census, NCES, CDC, EPA — via PlainCompare aggregation</li>
+        </ul>
+      </section>
+
+      <p class="text-xs italic text-gray-500 border-t border-gray-200 dark:border-gray-700 pt-4 mt-8">This content is for informational purposes only. Relocation is a personal decision involving many factors beyond data.</p>
+    </div>
+  </article>
+
+  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faqItems.map(item => ({ "@type": "Question", "name": item.q, "acceptedAnswer": { "@type": "Answer", "text": item.a } })) })} />
+</Base>

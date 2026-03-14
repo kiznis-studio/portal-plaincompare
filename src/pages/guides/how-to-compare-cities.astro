@@ -1,0 +1,114 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+
+const faqItems = [
+  { q: 'What data sources does PlainCompare use?', a: 'PlainCompare draws from multiple federal databases: BEA Regional Price Parities (cost of living), FBI UCR (crime rates), BLS OEWS (wages), Census ACS (demographics, housing), NCES (education), CDC PLACES (health), and EPA (air quality). This multi-source approach gives a more complete picture than any single dataset.' },
+  { q: 'What is a metropolitan statistical area (MSA)?', a: 'An MSA is a geographic region defined by the Census Bureau around a core urban area of 50,000+ population plus surrounding counties with strong commuting ties. MSAs capture the full economic area — not just the city itself. "Dallas-Fort Worth-Arlington" includes all the counties where people live and commute as part of that metro economy.' },
+  { q: 'Why compare metros instead of cities?', a: 'City limits are arbitrary political boundaries that don\'t reflect where people actually live, work, and commute. A person might live in a suburb, work downtown, and shop in a neighboring town — all within the same metro area. Metro-level data captures the entire labor market, housing market, and community.' },
+  { q: 'Which factors matter most for quality of life?', a: 'Research consistently shows that cost of living relative to income (affordability) has the strongest impact on financial quality of life. Safety, healthcare access, and education quality matter most for families. Climate and cultural amenities matter more for lifestyle preferences. There is no universal "best" city — it depends entirely on your priorities.' },
+  { q: 'Can I compare more than two cities?', a: 'Yes. PlainCompare supports side-by-side comparison of multiple metros. This is particularly useful for narrowing down a shortlist — compare your top 3-4 candidates across all dimensions to see where each excels and falls short.' },
+  { q: 'How current is the data?', a: 'Each data source has its own update cycle. BLS wages are updated annually. FBI crime data lags by 1-2 years. Census ACS is a rolling 5-year average. Cost of living (BEA RPP) is annual. PlainCompare uses the most recent available data from each source.' },
+];
+---
+
+<Base title="How to Compare Cities with Data — A Practical Framework" description="A framework for evaluating metros across cost of living, safety, education, jobs, health, and environment using federal data sources.">
+  <article class="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">How to Compare Cities with Data</h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mb-8">A structured approach to evaluating where to live using objective federal data.</p>
+
+    <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 mb-8">
+      <p class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Key Takeaway</p>
+      <p class="text-sm text-amber-700 dark:text-amber-300">Compare cities across six dimensions: affordability (cost vs. income), safety, jobs and wages, education, health, and environment. No single city wins on all dimensions — the goal is finding the best match for YOUR priorities. PlainCompare combines data from 7 federal sources to enable objective, multi-dimensional comparison.</p>
+    </div>
+
+    <div class="prose dark:prose-invert max-w-none space-y-6">
+      <section>
+        <h2>The Six Comparison Dimensions</h2>
+        <p>PlainCompare evaluates metros across six key areas, each drawing from a different federal data source:</p>
+        <ol>
+          <li><strong>Affordability:</strong> BEA Regional Price Parities measure how much goods and services cost relative to the national average. Combined with BLS wage data, this shows your real purchasing power — not just what you earn, but what you can buy with it.</li>
+          <li><strong>Safety:</strong> FBI Uniform Crime Reporting data shows violent and property crime rates per 100,000 residents. Compare both types — a city can be safe from violent crime but have high property crime, or vice versa.</li>
+          <li><strong>Jobs & Wages:</strong> BLS data shows employment levels and median wages for major occupations. Compare your specific occupation's wages across metros, not just overall median income.</li>
+          <li><strong>Education:</strong> NCES data covers school counts, student-teacher ratios, and enrollment. Combined with Census data on educational attainment, this paints a picture of the education landscape.</li>
+          <li><strong>Health:</strong> CDC PLACES data provides community health indicators — obesity rates, access to healthcare, mental health prevalence, and preventive care utilization.</li>
+          <li><strong>Environment:</strong> EPA air quality data and NOAA climate normals show environmental conditions — how many unhealthy air days, average temperatures, precipitation, and sunshine.</li>
+        </ol>
+        <p>Browse <a href="/metros/" class="text-indigo-600 dark:text-indigo-400 hover:underline">all metros</a> or use the <a href="/compare/" class="text-indigo-600 dark:text-indigo-400 hover:underline">comparison tool</a> to evaluate specific cities side by side.</p>
+      </section>
+
+      <section>
+        <h2>Step 1: Define Your Priorities</h2>
+        <p>Before comparing cities, rank what matters most to you. Common priority sets:</p>
+        <ul>
+          <li><strong>Young professional:</strong> Jobs → affordability → culture → safety</li>
+          <li><strong>Family with kids:</strong> Safety → education → affordability → health</li>
+          <li><strong>Retiree:</strong> Health → affordability → climate → safety</li>
+          <li><strong>Remote worker:</strong> Affordability → climate → safety → environment</li>
+        </ul>
+        <p>Your priorities determine which dimensions carry more weight in your decision. A city that's excellent on safety but poor on affordability might be perfect for a high earner but impractical for a median-income household.</p>
+      </section>
+
+      <section>
+        <h2>Step 2: Filter by Non-Negotiables</h2>
+        <p>Start by eliminating cities that fail your must-have criteria. Use PlainCompare's <a href="/rankings/" class="text-indigo-600 dark:text-indigo-400 hover:underline">rankings</a> to filter:</p>
+        <ul>
+          <li>If affordability is critical, eliminate metros with price parities above 110% (10%+ more expensive than national average).</li>
+          <li>If safety is non-negotiable, eliminate metros in the top quartile for violent crime.</li>
+          <li>If your career requires a specific industry, eliminate metros without a strong job market in that field.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Step 3: Compare Your Shortlist</h2>
+        <p>With 3-5 metros remaining, do a deep comparison:</p>
+        <ol>
+          <li>Use the <a href="/compare/" class="text-indigo-600 dark:text-indigo-400 hover:underline">side-by-side comparison</a> to see all dimensions at once.</li>
+          <li>Check <a href="/score/" class="text-indigo-600 dark:text-indigo-400 hover:underline">composite scores</a> that weight multiple factors into a single livability index.</li>
+          <li>Look at state-level context on <a href="/states/" class="text-indigo-600 dark:text-indigo-400 hover:underline">state pages</a> — state taxes, regulations, and policies affect daily life beyond metro-level data.</li>
+          <li>Cross-reference with county-level data for more granularity within a metro.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>What Data Can't Tell You</h2>
+        <p>Federal data is excellent for objective, quantifiable comparison. But some important factors aren't captured:</p>
+        <ul>
+          <li><strong>Culture and community feel:</strong> No dataset measures walkability, restaurant quality, arts scene, or neighborhood character. Visit in person.</li>
+          <li><strong>Social connections:</strong> Proximity to family and friends matters enormously for happiness. Data can't capture this.</li>
+          <li><strong>Future trajectory:</strong> Data reflects the past. A city investing heavily in infrastructure and attracting employers may be much better in 5 years than current data shows.</li>
+          <li><strong>Micro-geography:</strong> A metro area contains diverse neighborhoods. Data for the metro average may not reflect the specific suburb you'd live in.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Frequently Asked Questions</h2>
+        <div class="not-prose space-y-3">
+          {faqItems.map(item => (
+            <details class="group border border-gray-200 dark:border-gray-700 rounded-lg">
+              <summary class="cursor-pointer px-4 py-3 font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800">{item.q}</summary>
+              <p class="px-4 pb-4 text-gray-600 dark:text-gray-400 leading-relaxed">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section class="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h2 class="text-lg font-semibold mb-2">Sources</h2>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <li>Bureau of Economic Analysis — Regional Price Parities</li>
+          <li>FBI — Uniform Crime Reporting (UCR)</li>
+          <li>Bureau of Labor Statistics — OEWS</li>
+          <li>Census Bureau — American Community Survey</li>
+          <li>NCES — Common Core of Data</li>
+          <li>CDC — PLACES (Population Level Analysis)</li>
+          <li>EPA — Air Quality System</li>
+        </ul>
+      </section>
+
+      <p class="text-xs italic text-gray-500 border-t border-gray-200 dark:border-gray-700 pt-4 mt-8">This content is for informational purposes only. City selection is a personal decision involving many factors beyond data.</p>
+    </div>
+  </article>
+
+  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faqItems.map(item => ({ "@type": "Question", "name": item.q, "acceptedAnswer": { "@type": "Answer", "text": item.a } })) })} />
+</Base>
