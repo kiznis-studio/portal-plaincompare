@@ -26,6 +26,7 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package.json ./
+COPY --from=builder --chown=app:app /app/src/assets ./src/assets
 USER app
 ENV HOST=0.0.0.0
 ENV PORT=4321
