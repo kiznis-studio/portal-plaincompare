@@ -1,6 +1,20 @@
-// Multi-DB middleware v2 — compressed cache, bot guard, rolling metrics
-// Auto-discovers all env vars matching DATABASE_*_PATH or DB_*_PATH,
+// Multi-DB middleware template — for portals with cross-database queries
+// Uses this instead of middleware.ts when docker-compose has multiple DATABASE_* env vars.
+//
+// How it works: auto-discovers all env vars matching DATABASE_*_PATH or DB_*_PATH,
 // initializes a D1 adapter for each, and exposes them all via context.locals.runtime.env.
+//
+// Env var naming convention:
+//   DATABASE_PATH        → env.DB (primary)
+//   DATABASE_RENT_PATH   → env.DB_RENT
+//   DATABASE_CRIME_PATH  → env.DB_CRIME
+//   DB_COST_PATH         → env.DB_COST
+//   etc.
+//
+// To switch a single-DB portal to multi-DB:
+//   1. Replace src/middleware.ts with this file (rename to middleware.ts)
+//   2. Add volume mounts + env vars to docker-compose.titan.yml
+//   3. Update warmQueryCache in db.ts to accept the env record
 
 import { defineMiddleware } from 'astro:middleware';
 import { existsSync } from 'node:fs';
@@ -55,11 +69,11 @@ function getAllDbs(): Record<string, D1Database> {
 
 console.log(`[middleware] Multi-DB: discovered ${Object.keys(DB_PATHS).length} databases: ${Object.keys(DB_PATHS).join(', ')}`);
 
-// --- Concurrency guard (split human/bot) ---
+// --- Inflight tracking (metrics only — no rate limiting) ---
+// We don't rate-limit bots. Fast renders + CF edge cache handle the load.
+// These counters exist for /health metrics and TRM demand scoring.
 let inflightHuman = 0;
 let inflightBot = 0;
-const MAX_HUMAN_CONCURRENT = 15;
-const MAX_BOT_CONCURRENT = parseInt(process.env.MAX_BOT_CONCURRENT || '25', 10);
 
 // --- Event loop lag tracking ---
 let eventLoopLag = 0;
@@ -105,7 +119,9 @@ async function ensureWarmed(): Promise<void> {
       const env = getAllDbs();
       if (Object.keys(env).length === 0) { cacheWarmed = true; return; }
       try {
-        await warmQueryCache(env);
+        // Multi-DB warmup: pass the full env record
+        // warmQueryCache should accept either D1Database or Record<string, D1Database>
+        await warmQueryCache(env.DB || Object.values(env)[0]!, env);
         cacheWarmedAt = new Date().toISOString();
       } catch (err) {
         console.error('[cache] Warming failed:', err);
@@ -218,17 +234,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const ua = context.request.headers.get('user-agent') || '';
     const isBotUA = isbot(ua);
 
-    if (isBotUA) {
-      if (inflightBot >= MAX_BOT_CONCURRENT) {
-        return new Response('Service busy', { status: 503, headers: { 'Retry-After': '10', 'Cache-Control': 'no-store' } });
-      }
-      inflightBot++;
-    } else {
-      if (inflightHuman >= MAX_HUMAN_CONCURRENT) {
-        return new Response('Service busy', { status: 503, headers: { 'Retry-After': '5', 'Cache-Control': 'no-store' } });
-      }
-      inflightHuman++;
-    }
+    // Track inflight counts (for /health metrics + TRM demand scoring)
+    if (isBotUA) inflightBot++;
+    else inflightHuman++;
 
     const start = performance.now();
     try {
