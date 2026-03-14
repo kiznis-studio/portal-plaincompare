@@ -428,6 +428,36 @@ export async function getAllLifeScoreRankings(db: D1Database, type: string): Pro
   });
 }
 
+// ---- Life Score: Metros by state ----
+
+export async function getLifeScoresByState(db: D1Database, slug: string, stateAbbr: string, limit = 6): Promise<LifeScore[]> {
+  return cached(`getLifeScoresByState:${stateAbbr}:${slug}:${limit}`, async () => {
+    const all = await getAllLifeScoreRankings(db, 'metro');
+    return all
+      .filter(s => s.slug !== slug && s.name.includes(stateAbbr))
+      .slice(0, limit);
+  });
+}
+
+// ---- Life Score: Dimension strengths and weaknesses ----
+
+export function getStrengthsAndWeaknesses(score: LifeScore): { strengths: { dim: string; score: number }[]; weaknesses: { dim: string; score: number }[] } {
+  const dims = [
+    { dim: 'Cost of Living', score: score.cost_score },
+    { dim: 'Wages', score: score.wages_score },
+    { dim: 'Rent', score: score.rent_score },
+    { dim: 'Safety', score: score.crime_score },
+    { dim: 'Schools', score: score.schools_score },
+    { dim: 'Childcare', score: score.childcare_score },
+    { dim: 'Environment', score: score.enviro_score },
+  ].filter(d => d.score !== null) as { dim: string; score: number }[];
+  const sorted = [...dims].sort((a, b) => b.score - a.score);
+  return {
+    strengths: sorted.slice(0, 3),
+    weaknesses: sorted.slice(-3).reverse(),
+  };
+}
+
 // ---- Stats for homepage ----
 
 export async function getStats(db: D1Database) {

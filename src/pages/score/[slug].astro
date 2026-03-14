@@ -1,19 +1,38 @@
 ---
 export const prerender = false;
 import Base from '../../layouts/Base.astro';
-import { getLifeScore, getTopLifeScores } from '../../lib/db';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import { getLifeScore, getTopLifeScores, getLifeScoresByState, getStrengthsAndWeaknesses, getMetroBySlug, getMetroComparisonData } from '../../lib/db';
 import { DIMENSION_LABELS, DIMENSION_WEIGHTS, LOWER_IS_BETTER, gradeBgClass, gradeColor } from '../../lib/scores';
+import { formatMoney, formatRpp, formatNumber, formatPercent, rateValue } from '../../lib/format';
 import type { Dimension } from '../../lib/scores';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/score/');
 
-const db = Astro.locals.runtime.env.DB;
+const env = (Astro.locals as any).runtime.env;
+const db = env.DB;
 const score = await getLifeScore(db, slug);
 if (!score || score.type !== 'metro') return Astro.redirect('/score/');
 
-const allMetros = await getTopLifeScores(db, 'metro', 500);
+const stateAbbr = score.name.split(', ').pop()?.split('-')[0]?.trim() || '';
+
+const [allMetros, stateMetros, metro] = await Promise.all([
+  getTopLifeScores(db, 'metro', 500),
+  getLifeScoresByState(db, slug, stateAbbr, 6),
+  getMetroBySlug(db, slug),
+]);
+
 const rank = allMetros.findIndex(s => s.slug === slug) + 1;
+const { strengths, weaknesses } = getStrengthsAndWeaknesses(score);
+
+// Get cross-DB data if metro exists
+let compData: Awaited<ReturnType<typeof getMetroComparisonData>> | null = null;
+if (metro) {
+  try {
+    compData = await getMetroComparisonData(env, metro);
+  } catch { /* cross-DB may fail if bindings missing */ }
+}
 
 const dims: Dimension[] = ['cost', 'wages', 'rent', 'crime', 'schools', 'childcare', 'enviro'];
 const dimScores = dims.map(d => ({
@@ -28,7 +47,7 @@ const dimScores = dims.map(d => ({
 const cx = 100, cy = 100, maxR = 80;
 const n = dims.length;
 const angleStep = (2 * Math.PI) / n;
-const startAngle = -Math.PI / 2; // start from top
+const startAngle = -Math.PI / 2;
 
 function polarToXY(angle: number, r: number) {
   return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
@@ -43,34 +62,100 @@ function polygonPoints(values: (number | null)[], maxVal: number) {
   }).join(' ');
 }
 
-// Grid lines at 25%, 50%, 75%, 100%
 const gridLevels = [25, 50, 75, 100];
 const gridPolygons = gridLevels.map(pct => {
   const r = (pct / 100) * maxR;
-  const pts = Array.from({ length: n }, (_, i) => {
+  return Array.from({ length: n }, (_, i) => {
     const angle = startAngle + i * angleStep;
     const { x, y } = polarToXY(angle, r);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
-  return pts;
 });
 
 const scoreValues = dimScores.map(d => d.score);
 const dataPoints = polygonPoints(scoreValues, 100);
 
-// Label positions (slightly outside the outer ring)
 const labelPositions = dims.map((_, i) => {
   const angle = startAngle + i * angleStep;
   const r = maxR + 18;
   return polarToXY(angle, r);
 });
 
+const shortName = score.name.split(',')[0].split('-')[0].trim();
+
+// Data-rich title
+const pageTitle = `${shortName} Life Score: ${score.composite_score.toFixed(1)}/100 (Grade ${score.grade}) — #${rank} of ${allMetros.length}`;
+
+// Percentile
+const percentile = Math.round(((allMetros.length - rank) / allMetros.length) * 100);
+
+// Adjacent ranks for context
+const adjacentAbove = allMetros.filter(m => m.slug !== slug && m.composite_score > score.composite_score).slice(-3).reverse();
+const adjacentBelow = allMetros.filter(m => m.slug !== slug && m.composite_score <= score.composite_score).slice(0, 3);
+
+// FAQ items
+const faqItems: { q: string; a: string }[] = [];
+
+faqItems.push({
+  q: `What is the life score for ${score.name}?`,
+  a: `${score.name} has a composite life score of ${score.composite_score.toFixed(1)} out of 100, earning a grade of ${score.grade}. It ranks #${rank} out of ${allMetros.length} U.S. metro areas. This score is based on 7 dimensions: cost of living, wages, rent affordability, safety, school quality, childcare costs, and environmental quality.`
+});
+
+if (strengths.length > 0) {
+  const strengthNames = strengths.map(s => `${s.dim} (${s.score.toFixed(0)}/100)`).join(', ');
+  faqItems.push({
+    q: `What are ${shortName}'s biggest strengths?`,
+    a: `${shortName}'s strongest dimensions are ${strengthNames}. ${strengths[0].score >= 70 ? `The ${strengths[0].dim.toLowerCase()} score is particularly strong, placing the metro in the top tier nationally.` : `While these are the highest-scoring areas, there is room for improvement across the board.`}`
+  });
+}
+
+if (weaknesses.length > 0) {
+  const weakNames = weaknesses.map(w => `${w.dim} (${w.score.toFixed(0)}/100)`).join(', ');
+  faqItems.push({
+    q: `What are ${shortName}'s weakest areas?`,
+    a: `${shortName}'s lowest-scoring dimensions are ${weakNames}. ${weaknesses[0].score < 40 ? `The ${weaknesses[0].dim.toLowerCase()} score is notably below the median, which significantly impacts the overall composite rating.` : `These areas score below the metro's average but are not critically low.`}`
+  });
+}
+
+if (compData?.cost) {
+  faqItems.push({
+    q: `How expensive is ${shortName} compared to the national average?`,
+    a: `${shortName} has a Regional Price Parity of ${compData.cost.rpp_all?.toFixed(1)}, meaning it is ${compData.cost.rpp_all && compData.cost.rpp_all >= 100 ? `${(compData.cost.rpp_all - 100).toFixed(1)}% more` : `${(100 - (compData.cost.rpp_all || 100)).toFixed(1)}% less`} expensive than the national average. Rents are indexed at ${compData.cost.rpp_rents?.toFixed(1) || 'N/A'}.`
+  });
+}
+
+if (compData?.wages) {
+  faqItems.push({
+    q: `What is the average salary in ${shortName}?`,
+    a: `The average median salary across occupations in ${shortName} is ${formatMoney(compData.wages.median_salary)}, with total employment of ${formatNumber(compData.wages.total_employment)}.${compData.wages.top_occupations.length > 0 ? ` Top occupations include ${compData.wages.top_occupations.slice(0, 3).map(o => o.title).join(', ')}.` : ''}`
+  });
+}
+
+faqItems.push({
+  q: `How is the life score calculated?`,
+  a: `The life score is a weighted composite of 7 dimensions: Cost of Living (20%), Wages (20%), Rent (15%), Safety (15%), Schools (10%), Childcare (10%), and Environment (10%). Each dimension is scored from 0 to 100 based on national percentile rankings using official U.S. government data from BEA, BLS, HUD, FBI, NCES, DOL, and EPA.`
+});
+
+const faqSchema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqItems.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+});
+
 const ogImage = `/og/score/${slug}.png`;
+
+// Crime rates for display
+const violentRate = compData?.crime ? rateValue(compData.crime.violent_crime, compData.crime.population) : null;
+const propertyRate = compData?.crime ? rateValue(compData.crime.property_crime, compData.crime.population) : null;
 ---
 
 <Base
-  title={`${score.name} Life Score — Quality of Life Rating`}
-  description={`${score.name} scores ${score.composite_score.toFixed(1)}/100 (${score.grade}) in our composite quality-of-life rating across cost, wages, rent, safety, schools, childcare, and environment.`}
+  title={pageTitle}
+  description={`${score.name} scores ${score.composite_score.toFixed(1)}/100 (Grade ${score.grade}), ranked #${rank} of ${allMetros.length} U.S. metros. Strengths: ${strengths.slice(0, 2).map(s => s.dim).join(', ')}. Data from 7 federal sources.`}
   image={ogImage}
   breadcrumbs={[
     { name: 'Home', href: '/' },
@@ -78,13 +163,15 @@ const ogImage = `/og/score/${slug}.png`;
     { name: score.name },
   ]}
 >
+  <script type="application/ld+json" set:html={faqSchema} />
+
   <div class="max-w-6xl mx-auto px-4 py-10">
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-start gap-6 mb-10">
       <div class="flex-1">
         <h1 class="text-3xl font-bold text-[var(--color-text)] mb-2">{score.name}</h1>
         <p class="text-[var(--color-text-secondary)]">
-          Ranked #{rank} of {allMetros.length} metros
+          Ranked #{rank} of {allMetros.length} metros &middot; Top {percentile}%
         </p>
       </div>
       <div class="flex items-center gap-4">
@@ -103,19 +190,15 @@ const ogImage = `/og/score/${slug}.png`;
       <div class="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <h2 class="text-lg font-semibold text-[var(--color-text)] mb-4">Score Breakdown</h2>
         <svg viewBox="0 0 200 200" class="w-full max-w-sm mx-auto" xmlns="http://www.w3.org/2000/svg">
-          {/* Grid lines */}
           {gridPolygons.map(pts => (
             <polygon points={pts} fill="none" stroke="var(--color-border)" stroke-width="0.5" />
           ))}
-          {/* Axis lines */}
           {dims.map((_, i) => {
             const angle = startAngle + i * angleStep;
             const { x, y } = polarToXY(angle, maxR);
             return <line x1={cx} y1={cy} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="var(--color-border)" stroke-width="0.5" />;
           })}
-          {/* Data polygon */}
           <polygon points={dataPoints} fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="2" />
-          {/* Data points */}
           {scoreValues.map((v, i) => {
             if (v === null) return null;
             const r = (v / 100) * maxR;
@@ -123,7 +206,6 @@ const ogImage = `/og/score/${slug}.png`;
             const { x, y } = polarToXY(angle, r);
             return <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="3" fill="#0d9488" />;
           })}
-          {/* Labels */}
           {labelPositions.map((pos, i) => (
             <text
               x={pos.x.toFixed(1)}
@@ -164,7 +246,171 @@ const ogImage = `/og/score/${slug}.png`;
       </div>
     </div>
 
-    <!-- Nearby metros -->
+    <!-- Strengths & Weaknesses -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+      <div class="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 class="text-lg font-semibold text-[var(--color-text)] mb-4">Top Strengths</h2>
+        <div class="space-y-3">
+          {strengths.map((s, i) => (
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                {i + 1}
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-[var(--color-text)]">{s.dim}</div>
+                <div class="text-xs text-[var(--color-text-secondary)]">{s.score.toFixed(0)}/100</div>
+              </div>
+              <div class="h-1.5 w-20 bg-[var(--color-border)] rounded-full overflow-hidden">
+                <div class="h-full rounded-full bg-emerald-500" style={`width: ${s.score}%`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 class="text-lg font-semibold text-[var(--color-text)] mb-4">Areas for Improvement</h2>
+        <div class="space-y-3">
+          {weaknesses.map((w, i) => (
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-sm font-bold text-amber-600 dark:text-amber-400">
+                {i + 1}
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-[var(--color-text)]">{w.dim}</div>
+                <div class="text-xs text-[var(--color-text-secondary)]">{w.score.toFixed(0)}/100</div>
+              </div>
+              <div class="h-1.5 w-20 bg-[var(--color-border)] rounded-full overflow-hidden">
+                <div class="h-full rounded-full bg-amber-500" style={`width: ${w.score}%`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <AdSlot slot="mid" />
+
+    <!-- Key Data Points from Cross-DB -->
+    {compData && (compData.cost || compData.wages || compData.rent) && (
+      <div class="mb-10">
+        <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Key Data Points</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {compData.cost?.rpp_all && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class={`text-2xl font-bold ${compData.cost.rpp_all >= 100 ? 'text-amber-600 dark:text-amber-400' : 'text-teal-600 dark:text-teal-400'}`}>
+                {compData.cost.rpp_all.toFixed(1)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Cost Index (RPP)</div>
+            </div>
+          )}
+          {compData.wages?.median_salary && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class="text-2xl font-bold text-[var(--color-primary)]">
+                {formatMoney(compData.wages.median_salary)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Avg Median Salary</div>
+            </div>
+          )}
+          {compData.rent?.br2 && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class="text-2xl font-bold text-[var(--color-primary)]">
+                {formatMoney(compData.rent.br2)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">2BR Fair Market Rent</div>
+            </div>
+          )}
+          {violentRate !== null && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class={`text-2xl font-bold ${violentRate > 400 ? 'text-amber-600 dark:text-amber-400' : 'text-teal-600 dark:text-teal-400'}`}>
+                {violentRate.toFixed(0)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Violent Crime/100K ({stateAbbr})</div>
+            </div>
+          )}
+          {compData.schools?.avg_student_teacher_ratio && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class="text-2xl font-bold text-[var(--color-primary)]">
+                {compData.schools.avg_student_teacher_ratio.toFixed(1)}:1
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Student-Teacher Ratio</div>
+            </div>
+          )}
+          {compData.childcare?.center_infant && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class="text-2xl font-bold text-[var(--color-primary)]">
+                {formatMoney(compData.childcare.center_infant)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Infant Childcare/yr ({stateAbbr})</div>
+            </div>
+          )}
+          {compData.enviro?.num_superfund_sites != null && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class={`text-2xl font-bold ${compData.enviro.num_superfund_sites > 20 ? 'text-amber-600 dark:text-amber-400' : 'text-teal-600 dark:text-teal-400'}`}>
+                {formatNumber(compData.enviro.num_superfund_sites)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Superfund Sites ({stateAbbr})</div>
+            </div>
+          )}
+          {compData.wages?.total_employment && (
+            <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+              <div class="text-2xl font-bold text-[var(--color-primary)]">
+                {formatNumber(compData.wages.total_employment)}
+              </div>
+              <div class="text-xs text-[var(--color-text-secondary)] mt-1">Total Employment</div>
+            </div>
+          )}
+        </div>
+        <p class="text-xs text-[var(--color-text-secondary)] mt-2 italic">
+          Crime, schools, childcare, and environment data shown at state level where metro-specific data is unavailable.
+        </p>
+      </div>
+    )}
+
+    <!-- Ranking Context -->
+    <div class="mb-10">
+      <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Ranking Context</h2>
+      <p class="text-sm text-[var(--color-text-secondary)] mb-4">
+        {shortName} is in the top {percentile}% of U.S. metros. Here's where it falls in the national rankings.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+              <th class="pb-2 font-medium">Rank</th>
+              <th class="pb-2 font-medium">Metro</th>
+              <th class="pb-2 font-medium text-right">Score</th>
+              <th class="pb-2 font-medium text-right">Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {adjacentAbove.map((m, i) => (
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-2 text-[var(--color-text-secondary)]">#{rank - adjacentAbove.length + i}</td>
+                <td class="py-2"><a href={`/score/${m.slug}`} class="text-[var(--color-primary)] hover:underline">{m.name}</a></td>
+                <td class="py-2 text-right">{m.composite_score.toFixed(1)}</td>
+                <td class="py-2 text-right"><span class={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${gradeBgClass(m.grade)}`}>{m.grade}</span></td>
+              </tr>
+            ))}
+            <tr class="border-b-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5">
+              <td class="py-2 font-bold">#{rank}</td>
+              <td class="py-2 font-bold">{score.name}</td>
+              <td class="py-2 text-right font-bold">{score.composite_score.toFixed(1)}</td>
+              <td class="py-2 text-right"><span class={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${gradeBgClass(score.grade)}`}>{score.grade}</span></td>
+            </tr>
+            {adjacentBelow.map((m, i) => (
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-2 text-[var(--color-text-secondary)]">#{rank + 1 + i}</td>
+                <td class="py-2"><a href={`/score/${m.slug}`} class="text-[var(--color-primary)] hover:underline">{m.name}</a></td>
+                <td class="py-2 text-right">{m.composite_score.toFixed(1)}</td>
+                <td class="py-2 text-right"><span class={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${gradeBgClass(m.grade)}`}>{m.grade}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Similar-Scoring Metros -->
     <section class="mb-10">
       <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Similar-Scoring Metros</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -177,11 +423,101 @@ const ogImage = `/og/score/${slug}.png`;
       </div>
     </section>
 
+    <!-- State Metros -->
+    {stateMetros.length > 0 && (
+      <section class="mb-10">
+        <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">{stateAbbr} Metro Scores</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {stateMetros.map(m => (
+            <a href={`/score/${m.slug}`} class="flex items-center justify-between p-3 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
+              <span class="text-sm font-medium text-[var(--color-text)] truncate mr-2">{m.name}</span>
+              <span class={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${gradeBgClass(m.grade)}`}>{m.grade} {m.composite_score.toFixed(1)}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <!-- Cross-Portal Links -->
+    <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Explore {shortName} Data</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
+      <a href={`https://plaincost.com/metro/${slug}`} target="_blank" rel="noopener"
+        class="flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] transition-colors">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Cost of Living Details</div>
+          <div class="text-xs text-[var(--color-text-secondary)]">BEA Regional Price Parity breakdown</div>
+        </div>
+        <span class="text-[var(--color-primary)] text-sm">PlainCost &rarr;</span>
+      </a>
+      <a href={`https://wagedex.com/search?q=${encodeURIComponent(shortName)}`} target="_blank" rel="noopener"
+        class="flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] transition-colors">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Salary Data</div>
+          <div class="text-xs text-[var(--color-text-secondary)]">BLS occupation wages for {shortName}</div>
+        </div>
+        <span class="text-[var(--color-primary)] text-sm">WageDex &rarr;</span>
+      </a>
+      <a href={`https://plainrent.com/search?q=${encodeURIComponent(shortName)}`} target="_blank" rel="noopener"
+        class="flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] transition-colors">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Fair Market Rents</div>
+          <div class="text-xs text-[var(--color-text-secondary)]">HUD rent data for {shortName}</div>
+        </div>
+        <span class="text-[var(--color-primary)] text-sm">PlainRent &rarr;</span>
+      </a>
+      <a href={`https://plainrelocate.com/metro/${slug}`} target="_blank" rel="noopener"
+        class="flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] transition-colors">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Relocation Guide</div>
+          <div class="text-xs text-[var(--color-text-secondary)]">7-dimension relocation intelligence</div>
+        </div>
+        <span class="text-[var(--color-primary)] text-sm">PlainRelocate &rarr;</span>
+      </a>
+      <a href={`https://plaincrime.com/search?q=${encodeURIComponent(shortName)}`} target="_blank" rel="noopener"
+        class="flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] transition-colors">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Crime Rates</div>
+          <div class="text-xs text-[var(--color-text-secondary)]">FBI UCR safety data</div>
+        </div>
+        <span class="text-[var(--color-primary)] text-sm">PlainCrime &rarr;</span>
+      </a>
+      <a href={`https://plainschools.com/search?q=${encodeURIComponent(shortName)}`} target="_blank" rel="noopener"
+        class="flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)] transition-colors">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Schools</div>
+          <div class="text-xs text-[var(--color-text-secondary)]">NCES school data near {shortName}</div>
+        </div>
+        <span class="text-[var(--color-primary)] text-sm">PlainSchools &rarr;</span>
+      </a>
+    </div>
+
+    <!-- FAQ -->
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Frequently Asked Questions</h2>
+      <div class="space-y-3">
+        {faqItems.map(f => (
+          <details class="group bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
+            <summary class="flex items-center justify-between p-4 cursor-pointer font-medium text-[var(--color-text)]">
+              {f.q}
+              <span class="ml-2 text-[var(--color-text-secondary)] group-open:rotate-180 transition-transform">&#9660;</span>
+            </summary>
+            <div class="px-4 pb-4 text-[var(--color-text-secondary)] text-sm">
+              {f.a}
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+
     <!-- Compare & Links -->
-    <div class="flex flex-wrap gap-3">
+    <div class="flex flex-wrap gap-3 mb-6">
       <a href={`/compare/${score.slug}-vs-`} class="text-sm font-medium text-[var(--color-primary)] hover:underline">Compare this metro &rarr;</a>
       <a href="/score/rankings" class="text-sm font-medium text-[var(--color-primary)] hover:underline">Full rankings &rarr;</a>
       <a href="/score/" class="text-sm font-medium text-[var(--color-primary)] hover:underline">Life Score methodology &rarr;</a>
+    </div>
+
+    <div class="pt-4 border-t border-[var(--color-border)] text-sm text-[var(--color-text-secondary)]">
+      <p>Data from BEA, HUD, FBI UCR, BLS OES, NCES, DOL, and EPA. Not affiliated with the U.S. Government.</p>
     </div>
   </div>
 </Base>
