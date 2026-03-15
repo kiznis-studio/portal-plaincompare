@@ -12,7 +12,13 @@ const guides = [
 <Base title="City Comparison Guides — PlainCompare" description="Guides on comparing cities, understanding metro data, and making data-driven relocation decisions using federal data.">
   <div class="mx-auto max-w-4xl px-4 py-8 md:py-12">
     <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">City Comparison Guides</h1>
-    <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-2xl">Learn how to use multi-source federal data to compare cities objectively.</p>
+    <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-2xl">
+      Learn how to use multi-source federal data to compare cities objectively.
+      These guides cover the seven dimensions PlainCompare draws from — cost of
+      living (BEA), rent (HUD), crime (FBI), jobs (BLS), schools (NCES),
+      childcare (DOL), and environment (EPA) — and show you how to weigh
+      each factor for a data-driven relocation decision across 384 metros.
+    </p>
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {guides.map(g => (
         <a href={`/guides/${g.slug}`} class="block p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
