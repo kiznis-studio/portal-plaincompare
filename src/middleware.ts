@@ -69,30 +69,30 @@ function getRollingMetrics() {
   return { requestRate: rate, avgLatency: avg };
 }
 
-// --- Cache warming ---
+// --- Background batched cache warming ---
+// Only the first cluster worker (CACHE_WARM_WORKER=1) runs proactive warming.
+// Additional workers populate cache lazily from real traffic — no duplicate CPU work.
 let cacheWarmed = false;
 let cacheWarmedAt: string | null = null;
-let warmingPromise: Promise<void> | null = null;
 
-async function ensureWarmed(): Promise<void> {
-  if (cacheWarmed) return;
-  if (!warmingPromise) {
-    warmingPromise = (async () => {
-      const env = getAllDbs();
-      if (Object.keys(env).length === 0) { cacheWarmed = true; return; }
-      try {
-        // Multi-DB: pass full env record to warmQueryCache
-        await warmQueryCache(env);
-        cacheWarmedAt = new Date().toISOString();
-      } catch (err) {
-        console.error('[cache] Warming failed:', err);
-      }
-      cacheWarmed = true;
-    })();
-  }
-  await warmingPromise;
+const IS_WARM_WORKER = process.env.CACHE_WARM_WORKER !== '0';
+
+function startBackgroundWarming(): void {
+  if (!IS_WARM_WORKER) { cacheWarmed = true; return; }
+  const env = getAllDbs();
+  if (Object.keys(env).length === 0) { cacheWarmed = true; return; }
+  (async () => {
+    try {
+      const primary = env.DB || Object.values(env)[0]!;
+      await (warmQueryCache as any)(primary, env);
+      cacheWarmedAt = new Date().toISOString();
+    } catch (err) {
+      console.error('[cache] Warming failed:', err);
+    }
+    cacheWarmed = true;
+  })();
 }
-ensureWarmed();
+startBackgroundWarming();
 
 // --- Compressed LRU response cache ---
 interface CacheEntry { compressed: Buffer; contentType: string; cacheControl: string; hits: number; }
@@ -163,7 +163,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (path.charCodeAt(1) === 95) return next();
   if (path.startsWith('/fav')) return next();
-  if (!cacheWarmed) await ensureWarmed();
+  // No blocking — requests always proceed. Cache hits use cache, misses go to DB.
 
   if (context.request.method === 'GET') {
     const cacheKey = path + context.url.search;
