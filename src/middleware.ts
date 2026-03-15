@@ -81,12 +81,8 @@ async function ensureWarmed(): Promise<void> {
       const env = getAllDbs();
       if (Object.keys(env).length === 0) { cacheWarmed = true; return; }
       try {
-        // Multi-DB: pass full env to warmQueryCache
-        // warmQueryCache signature varies per portal:
-        //   (db: D1Database) for single-DB warmup
-        //   (env: Record<string, D1Database>) for multi-DB warmup
-        const primary = env.DB || Object.values(env)[0]!;
-        await (warmQueryCache as any)(primary, env);
+        // Multi-DB: pass full env record to warmQueryCache
+        await warmQueryCache(env);
         cacheWarmedAt = new Date().toISOString();
       } catch (err) {
         console.error('[cache] Warming failed:', err);
