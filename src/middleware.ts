@@ -151,15 +151,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const path = context.url.pathname;
   (context.locals as any).runtime = { env: getAllDbs() };
 
-  if (path === '/health') {
-    if (!cacheWarmed) {
-      ensureWarmed();
-      return new Response('{"status":"warming"}', {
-        status: 503, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-      });
-    }
-    return next();
-  }
+  // Fast-path: health endpoint — always available, even during warming
+  if (path === '/health') return next();
 
   if (path.charCodeAt(1) === 95) return next();
   if (path.startsWith('/fav')) return next();
