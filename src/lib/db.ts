@@ -488,8 +488,8 @@ export async function warmQueryCache(env: Record<string, D1Database>): Promise<n
     getAllLifeScoreRankings(env.DB, 'metro'),
     getAllLifeScoreRankings(env.DB, 'state'),
     ...stateCosts.map(s => Promise.all([
-      getStateRent(env.DB, s.abbr),
-      getStateWages(env.DB, s.abbr),
+      getStateRent(env.DB_RENT, s.abbr),
+      getStateWages(env.DB_WAGE, s.abbr),
       getStateSchools(env.DB_SCHOOLS, s.abbr),
       getStateChildcare(env.DB_CHILDCARE, s.abbr),
       getStateEnviro(env.DB_ENVIRO, s.abbr),
