@@ -22,6 +22,7 @@ const isActive = (path: string) => currentPath === path || currentPath.startsWit
         <a href="/counties" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/counties') || isActive('/compare/counties') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Counties</a>
         <a href="/score/" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/score') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Life Score</a>
         <a href="/rankings" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/rankings') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Rankings</a>
+        <a href="/guides" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/guides') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>Guides</a>
         <a href="/about" class:list={['hover:text-[var(--color-primary)] transition-colors', isActive('/about') ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]']}>About</a>
       </nav>
 
@@ -60,6 +61,7 @@ const isActive = (path: string) => currentPath === path || currentPath.startsWit
         <a href="/counties" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/counties') || isActive('/compare/counties') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Counties</a>
         <a href="/score/" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/score') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Life Score</a>
         <a href="/rankings" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/rankings') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Rankings</a>
+        <a href="/guides" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/guides') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>Guides</a>
         <a href="/about" class:list={['px-3 py-2 rounded-lg transition-colors', isActive('/about') ? 'text-[var(--color-primary)] bg-[var(--color-surface)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]']}>About</a>
       </div>
       <form action="/search" method="get" class="mt-3 sm:hidden">

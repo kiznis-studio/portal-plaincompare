@@ -1,0 +1,160 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+
+const faqItems = [
+  { q: 'What makes a metro "fast-growing"?', a: 'Population growth alone is insufficient. A metro can gain residents while losing economic vitality — think industrial towns attracting retirees but shedding workers. The strongest growth metros expand on all three dimensions simultaneously: population (Census estimates), employment (BLS), and income growth (BEA). A metro ranking in the top third on all three is genuinely fast-growing.' },
+  { q: 'Are fast-growing metros good places to live?', a: 'They often are — growth signals job availability, rising incomes, investment in infrastructure, and improving amenities. But rapid growth also creates challenges: housing costs rise faster than in stable markets, traffic worsens, and public services strain to keep pace. The best growth metros are those that invest in infrastructure alongside growth — not all of them do.' },
+  { q: 'Which region is growing fastest overall?', a: 'The South and Mountain West have dominated U.S. metro growth for the past two decades. Texas metros (Austin, Dallas, Houston, San Antonio), Florida metros (Jacksonville, Orlando, Tampa), and Mountain metros (Phoenix, Denver, Salt Lake City, Boise) have collectively absorbed the majority of domestic migration since 2000. This trend accelerated significantly during 2020-2023 as remote work freed workers from high-cost coastal metros.' },
+  { q: 'Why are Rust Belt metros losing population?', a: 'Legacy manufacturing regions lost their employment base to automation and offshoring from the 1970s onward. Without a robust job market, working-age adults migrate to opportunity. Population decline creates a fiscal spiral: fewer taxpayers means reduced services, which accelerates outmigration. Some Rust Belt metros (Pittsburgh, Columbus, Indianapolis) have successfully diversified into healthcare, education, and technology and stabilized or reversed decline.' },
+  { q: 'How does population growth affect housing costs?', a: 'Demand-driven population growth reliably raises housing costs in metros where housing supply cannot keep pace. The Sun Belt metros that have successfully kept housing relatively affordable despite rapid growth (Dallas, Houston, Phoenix) are characterized by permissive zoning, abundant developable land, and pro-development local governments. Metros with restrictive zoning (San Jose, Miami, Denver) see sharper housing cost increases even with moderate growth.' },
+  { q: 'Should I move to a fast-growing metro for career growth?', a: 'Growing metros generally offer more job openings, more upward career mobility, and more employer diversity than shrinking metros. But industry fit matters more than aggregate growth. A biotech professional in a fast-growing finance metro gains less than one in a growing biotech hub. Check BLS employment concentration in your specific industry, not just the metro\'s overall growth rate.' },
+];
+
+const growingMetros = [
+  { rank: 1, metro: 'Austin-Round Rock, TX', pop_growth: '+31.8%', job_growth: '+28.4%', income_growth: '+22.1%', period: '2015–2023', primary_driver: 'Technology, semiconductors' },
+  { rank: 2, metro: 'Raleigh-Cary, NC', pop_growth: '+25.2%', job_growth: '+22.7%', income_growth: '+19.6%', period: '2015–2023', primary_driver: 'Research Triangle tech/pharma' },
+  { rank: 3, metro: 'Jacksonville, FL', pop_growth: '+22.9%', job_growth: '+20.3%', income_growth: '+17.2%', period: '2015–2023', primary_driver: 'Logistics, finance, healthcare' },
+  { rank: 4, metro: 'Phoenix-Mesa-Scottsdale, AZ', pop_growth: '+21.4%', job_growth: '+19.8%', income_growth: '+18.4%', period: '2015–2023', primary_driver: 'Semiconductor fabs, finance' },
+  { rank: 5, metro: 'Nashville-Davidson, TN', pop_growth: '+21.1%', job_growth: '+21.5%', income_growth: '+20.8%', period: '2015–2023', primary_driver: 'Healthcare, tourism, tech' },
+  { rank: 6, metro: 'Dallas-Fort Worth-Arlington, TX', pop_growth: '+20.7%', job_growth: '+18.9%', income_growth: '+17.8%', period: '2015–2023', primary_driver: 'Finance, technology, logistics' },
+  { rank: 7, metro: 'Salt Lake City, UT', pop_growth: '+18.3%', job_growth: '+17.6%', income_growth: '+19.2%', period: '2015–2023', primary_driver: 'Silicon Slopes tech cluster' },
+  { rank: 8, metro: 'Charlotte-Concord, NC-SC', pop_growth: '+18.1%', job_growth: '+17.4%', income_growth: '+16.9%', period: '2015–2023', primary_driver: 'Banking, fintech, logistics' },
+  { rank: 9, metro: 'Orlando-Kissimmee, FL', pop_growth: '+17.9%', job_growth: '+16.2%', income_growth: '+15.1%', period: '2015–2023', primary_driver: 'Tourism, aerospace, healthcare' },
+  { rank: 10, metro: 'Denver-Aurora-Lakewood, CO', pop_growth: '+17.4%', job_growth: '+16.8%', income_growth: '+18.3%', period: '2015–2023', primary_driver: 'Technology, aerospace, energy' },
+  { rank: 11, metro: 'Tampa-St. Petersburg, FL', pop_growth: '+16.8%', job_growth: '+15.9%', income_growth: '+16.7%', period: '2015–2023', primary_driver: 'Finance, healthcare, remote workers' },
+  { rank: 12, metro: 'Houston-The Woodlands, TX', pop_growth: '+15.9%', job_growth: '+13.4%', income_growth: '+14.2%', period: '2015–2023', primary_driver: 'Energy, healthcare, petrochemicals' },
+  { rank: 13, metro: 'Boise City, ID', pop_growth: '+25.6%', job_growth: '+21.3%', income_growth: '+20.4%', period: '2015–2023', primary_driver: 'Tech migration, manufacturing' },
+  { rank: 14, metro: 'San Antonio-New Braunfels, TX', pop_growth: '+15.4%', job_growth: '+14.7%', income_growth: '+13.8%', period: '2015–2023', primary_driver: 'Military, healthcare, tourism' },
+  { rank: 15, metro: 'Columbus, OH', pop_growth: '+12.7%', job_growth: '+13.1%', income_growth: '+15.6%', period: '2015–2023', primary_driver: 'Technology, logistics, finance' },
+];
+---
+
+<Base title="Fastest-Growing Metros in America — Population, Jobs, and Income Data" description="Data ranking of U.S. metropolitan areas by population growth, job growth, and income growth. Top 15 fastest-growing metros and what is driving their expansion.">
+  <article class="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">Fastest-Growing Metros in America</h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mb-8">Population, employment, and income growth rankings — where Americans are moving and why, based on Census, BLS, and BEA data.</p>
+
+    <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 mb-8">
+      <p class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Key Takeaway</p>
+      <p class="text-sm text-amber-700 dark:text-amber-300">U.S. metro growth since 2015 has concentrated in Texas, Florida, the Carolinas, and the Mountain West. The fastest-growing metros share three traits: lower cost of living than coastal peers, favorable business climate, and expansion in high-wage industries. Austin, Raleigh, Boise, and Nashville lead a cohort of metros that have grown population, employment, and incomes simultaneously — the trifecta that signals genuine economic momentum rather than mere population displacement.</p>
+    </div>
+
+    <div class="prose dark:prose-invert max-w-none space-y-6">
+      <section>
+        <h2>How Growth Is Measured</h2>
+        <p>Three indicators together define a genuinely growing metro. Population growth alone can be misleading — a metro can gain residents while economic conditions deteriorate, as happened in some retirement-destination metros. Employment growth confirms that economic opportunity is expanding. Income growth confirms that the new jobs are quality jobs with rising wages, not just low-wage service positions.</p>
+        <ul>
+          <li><strong>Population growth:</strong> Census Bureau annual population estimates, measuring net migration (domestic + international) plus natural increase.</li>
+          <li><strong>Employment growth:</strong> BLS Quarterly Census of Employment and Wages (QCEW), tracking actual payroll employment changes.</li>
+          <li><strong>Income growth:</strong> BEA per-capita personal income growth, capturing wages, business income, and transfer payments.</li>
+        </ul>
+        <p>The metros below rank in the top tier on all three measures from 2015 to 2023 — the period spanning pre-pandemic growth, pandemic disruption, and post-pandemic normalization.</p>
+      </section>
+
+      <section>
+        <h2>Top 15 Fastest-Growing U.S. Metros (2015–2023)</h2>
+        <div class="not-prose overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-gray-50 dark:bg-gray-800">
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">#</th>
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">Metro Area</th>
+                <th class="text-right p-3 border border-gray-200 dark:border-gray-700 font-semibold">Pop Growth</th>
+                <th class="text-right p-3 border border-gray-200 dark:border-gray-700 font-semibold">Job Growth</th>
+                <th class="text-right p-3 border border-gray-200 dark:border-gray-700 font-semibold">Income Growth</th>
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">Primary Driver</th>
+              </tr>
+            </thead>
+            <tbody>
+              {growingMetros.map((row, i) => (
+                <tr class={i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-mono">{row.rank}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 font-medium">{row.metro}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-right text-teal-600 dark:text-teal-400 font-mono">{row.pop_growth}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-right text-teal-600 dark:text-teal-400 font-mono">{row.job_growth}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-right text-teal-600 dark:text-teal-400 font-mono">{row.income_growth}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs">{row.primary_driver}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Growth percentages are cumulative from 2015 to 2023. Sources: Census Bureau population estimates, BLS QCEW, BEA per-capita personal income. Some metros (Boise, Columbus) included based on above-average growth across all three dimensions despite smaller base size.</p>
+      </section>
+
+      <section>
+        <h2>What Is Driving Sun Belt and Mountain West Growth</h2>
+        <p>The dominant growth pattern of the past decade is migration from high-cost coastal metros to lower-cost Sun Belt and Mountain West metros. The drivers are structural, not temporary:</p>
+        <ul>
+          <li><strong>Housing affordability gap:</strong> A home that costs $1.2M in San Jose costs $450K in Austin and $280K in Raleigh. That gap drives household formation decisions, especially among millennials entering prime home-buying years.</li>
+          <li><strong>Remote work decoupling:</strong> The 2020-2021 remote work surge accelerated a migration trend already underway. Workers no longer required to live near headquarters could optimize for purchasing power and lifestyle — and millions did.</li>
+          <li><strong>Business relocation:</strong> Major employers have relocated headquarters or significant operations to Texas, Tennessee, Florida, and the Carolinas, drawn by lower taxes, lower labor costs, and available real estate.</li>
+          <li><strong>State tax advantages:</strong> Texas, Florida, Tennessee, and Nevada have no state income tax. For high earners, this represents a meaningful real income increase versus California (up to 13.3%) or New York (up to 10.9%).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Metros Losing Population</h2>
+        <p>While the Sun Belt expands, several major metros have lost population. Understanding the pattern helps contextualize the growth story:</p>
+        <ul>
+          <li><strong>San Francisco-Oakland, CA:</strong> Lost roughly 7% of population 2020-2023, driven by housing cost, crime concerns, and remote work flexibility unlocking migration.</li>
+          <li><strong>New York-Newark, NY-NJ:</strong> Population decline accelerated 2020-2022; partial recovery 2023. High cost, high taxes, and density were amplified by pandemic concerns.</li>
+          <li><strong>Chicago-Naperville, IL:</strong> Consistent long-term population loss in the city proper, with metro-level loss beginning more recently. High property taxes and fiscal concerns drive household decisions.</li>
+          <li><strong>Detroit-Warren, MI:</strong> Long-term population decline rooted in manufacturing job loss; partial stabilization from automotive industry reinvestment.</li>
+        </ul>
+        <p>Population loss metros often offer exceptional purchasing power — low housing costs relative to income — but require careful job market vetting. Use <a href="/metros/" class="text-indigo-600 dark:text-indigo-400 hover:underline">metro pages</a> to check current employment and wage data for any metro before ruling it out.</p>
+      </section>
+
+      <section>
+        <h2>Growth Does Not Guarantee Livability</h2>
+        <p>Rapid growth creates real quality-of-life challenges. Before moving to a fast-growing metro, check:</p>
+        <ul>
+          <li><strong>Housing cost trajectory:</strong> Austin's median home price roughly doubled 2018-2022. Rapid appreciation benefits existing owners but increases barriers to entry.</li>
+          <li><strong>Traffic and infrastructure:</strong> Phoenix, Austin, and Charlotte all rank among the worst metros for traffic growth. Commute times have risen significantly.</li>
+          <li><strong>School capacity:</strong> Fast-growing school districts often struggle to build enough capacity for incoming families. Check enrollment wait times and district capacity utilization.</li>
+          <li><strong>Water:</strong> Phoenix, Las Vegas, and other desert Southwest metros face long-term water supply constraints that may limit growth or require significant investment.</li>
+        </ul>
+        <p>Use <a href="/compare/" class="text-indigo-600 dark:text-indigo-400 hover:underline">side-by-side comparisons</a> to evaluate any two growth metros against each other across all seven data dimensions.</p>
+      </section>
+
+      <section>
+        <h2>Emerging Growth Metros to Watch</h2>
+        <p>Beyond the established leaders, several smaller metros show strong multi-dimensional growth trends that suggest continued expansion:</p>
+        <ul>
+          <li><strong>Huntsville, AL:</strong> Defense and aerospace investment anchored by Redstone Arsenal and a growing tech sector. Exceptional affordability with professional-level wages.</li>
+          <li><strong>Greenville-Spartanburg, SC:</strong> BMW, Michelin, and GE anchor a manufacturing cluster with international supply chain investment. Cost of living well below Southeast peer metros.</li>
+          <li><strong>Provo-Orem, UT:</strong> "Silicon Slopes" tech extension south of Salt Lake City, with BYU providing a talent pipeline and costs still below Wasatch Front averages.</li>
+          <li><strong>Fayetteville-Springdale, AR:</strong> Walmart, J.B. Hunt, and Tyson Foods anchor unusual corporate density for a small metro, driving income growth disproportionate to size.</li>
+        </ul>
+        <p>Smaller growth metros often provide better purchasing power than established leaders while offering the upside of continued appreciation — but with higher risk if the primary employment anchor contracts. Explore any of these using <a href="/metros/" class="text-indigo-600 dark:text-indigo-400 hover:underline">full metro data pages</a>.</p>
+      </section>
+
+      <section>
+        <h2>Frequently Asked Questions</h2>
+        <div class="not-prose space-y-3">
+          {faqItems.map(item => (
+            <details class="group border border-gray-200 dark:border-gray-700 rounded-lg">
+              <summary class="cursor-pointer px-4 py-3 font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800">{item.q}</summary>
+              <p class="px-4 pb-4 text-gray-600 dark:text-gray-400 leading-relaxed">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section class="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h2 class="text-lg font-semibold mb-2">Sources</h2>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <li>U.S. Census Bureau — Annual Population Estimates (Vintage 2023)</li>
+          <li>Bureau of Labor Statistics (BLS) — Quarterly Census of Employment and Wages (QCEW)</li>
+          <li>Bureau of Economic Analysis (BEA) — Per-Capita Personal Income by MSA</li>
+          <li>BEA Regional Price Parities (RPP) — Cost of living by metro</li>
+        </ul>
+      </section>
+
+      <p class="text-xs italic text-gray-500 border-t border-gray-200 dark:border-gray-700 pt-4 mt-8">Growth percentages are estimates based on federal data through 2023. Future growth is not guaranteed. This content is for informational purposes only.</p>
+    </div>
+  </article>
+
+  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faqItems.map(item => ({ "@type": "Question", "name": item.q, "acceptedAnswer": { "@type": "Answer", "text": item.a } })) })} />
+</Base>

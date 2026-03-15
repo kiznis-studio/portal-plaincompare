@@ -1,0 +1,172 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+
+const faqItems = [
+  { q: 'What is the single most important factor when choosing a city to move to?', a: 'Purchasing power — your income relative to local cost of living — is the foundational factor. Everything else matters, but if you cannot afford to live comfortably, other advantages become irrelevant. Use BEA Regional Price Parities to calculate your real purchasing power in each metro before considering any other dimension.' },
+  { q: 'How do I weigh crime data against other factors?', a: 'Crime data (FBI UCR rates per 100K) screens out metros that fail a basic safety threshold. It works best as a filter, not a ranking dimension. A city with twice the national average violent crime rate warrants serious scrutiny. Below that threshold, prioritize crime less heavily — most metros are safe for most residents in most neighborhoods.' },
+  { q: 'Should school quality matter if I do not have children?', a: 'Yes, for two reasons. Strong school systems attract higher-income households, which correlates with property value appreciation, lower crime, and better community infrastructure. Also, plans change. If there is any possibility of children in your future, building that school quality into your initial decision avoids a costly move later.' },
+  { q: 'How accurate is federal data for making real-world decisions?', a: 'Federal data (BEA, BLS, Census, FBI, NCES) is the gold standard for metro-level comparisons. It is consistent, annual, and covers all metros. The limitation is granularity — it describes metro-wide averages, not neighborhoods. Use it to narrow to 3-5 metros, then research specific neighborhoods within those metros for finer-grained decisions.' },
+  { q: 'What climate data should I prioritize?', a: 'NOAA climate normals (1991-2020) show 30-year average temperature ranges, annual precipitation, snowfall, and sunshine hours. For livability, focus on: winter lows if cold is a dealbreaker, summer highs and humidity if heat is a concern, and annual sunshine days if seasonal affective disorder is a factor. Climate is the one factor that cannot be solved by spending more money.' },
+  { q: 'How do I account for future trends, not just current data?', a: 'Federal datasets lag 1-3 years. For growth signals, supplement with BLS metro employment growth rates (compare 3-5 year trends), Census population change, and real estate price appreciation trends. Metros adding population and jobs are generally improving on most dimensions. Metros losing population face fiscal pressure that typically worsens quality of life over time.' },
+];
+
+const factors = [
+  { factor: 'Purchasing Power', source: 'BEA RPP + BLS', what_it_measures: 'Income adjusted for local price levels', why_it_matters: 'Determines actual standard of living regardless of nominal salary', weight: 'Very High' },
+  { factor: 'Housing Cost', source: 'HUD FMR + Census ACS', what_it_measures: 'Median rent, home values, vacancy rates', why_it_matters: 'Largest single household expense; directly limits financial flexibility', weight: 'Very High' },
+  { factor: 'Violent Crime', source: 'FBI UCR', what_it_measures: 'Violent crimes per 100K residents', why_it_matters: 'Personal safety; affects stress, insurance, and daily freedom of movement', weight: 'High' },
+  { factor: 'School Quality', source: 'NCES + Census', what_it_measures: 'Student-teacher ratios, enrollment, attainment rates', why_it_matters: 'Affects children\'s outcomes; signals neighborhood investment', weight: 'High (families)' },
+  { factor: 'Job Market', source: 'BLS OEWS', what_it_measures: 'Employment levels and wages by occupation', why_it_matters: 'Income security; career advancement opportunities', weight: 'High (non-remote)' },
+  { factor: 'Climate', source: 'NOAA Normals', what_it_measures: '30-year avg temperature, precip, sunshine', why_it_matters: 'Daily comfort, energy costs, outdoor lifestyle, long-term health', weight: 'Medium-High' },
+  { factor: 'Air Quality', source: 'EPA AQS', what_it_measures: 'Annual AQI, PM2.5, ozone levels', why_it_matters: 'Long-term respiratory health; affects outdoor activities', weight: 'Medium' },
+  { factor: 'Healthcare Access', source: 'CDC PLACES', what_it_measures: 'Community health outcomes and behaviors', why_it_matters: 'Healthcare availability; health culture of the community', weight: 'Medium' },
+];
+---
+
+<Base title="How to Use Data for Relocation Decisions — PlainCompare Guide" description="A practical guide to using multi-factor federal data — cost of living, crime, schools, jobs, and climate — to evaluate cities before making a move.">
+  <article class="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">How to Use Data for Relocation Decisions</h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mb-8">A practical framework: which factors matter most, how to weight them, and how to turn federal data into a shortlist you can act on.</p>
+
+    <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 mb-8">
+      <p class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Key Takeaway</p>
+      <p class="text-sm text-amber-700 dark:text-amber-300">Relocation decisions fail when people optimize for the wrong factor or ignore data entirely. The most common mistake: choosing a high-salary city without accounting for cost of living, only to discover lower purchasing power than back home. A structured 8-factor analysis using BEA, FBI, BLS, NCES, HUD, NOAA, and EPA data turns 384 metros into a defensible shortlist of 3-5 candidates — then experience fills in what data cannot capture.</p>
+    </div>
+
+    <div class="prose dark:prose-invert max-w-none space-y-6">
+      <section>
+        <h2>Why Most Relocation Decisions Are Made on Bad Data</h2>
+        <p>The average American moves 11 times in their lifetime. Yet few of those moves involve systematic data analysis. Most people choose cities based on: a job offer, family proximity, a vacation impression, or word of mouth from one person. These inputs are useful but incomplete. A job offer in Austin tells you nothing about whether Austin's cost-of-living growth has outpaced its salary growth, or whether its school quality matches your expectations, or whether its air quality will aggravate your allergies.</p>
+        <p>PlainCompare aggregates seven federal data sources — BEA, HUD, FBI, BLS, NCES, EPA, and CDC — across 384 metros. That breadth means you can compare every significant U.S. metro on the same set of dimensions, using data that is consistent, reproducible, and government-verified. The framework below converts that data into a decision process.</p>
+      </section>
+
+      <section>
+        <h2>The Eight Key Factors</h2>
+        <p>Not all relocation factors carry equal weight. Below are the eight dimensions that most reliably predict long-term satisfaction with a move, along with the federal data source behind each:</p>
+        <div class="not-prose overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-gray-50 dark:bg-gray-800">
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">Factor</th>
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">Data Source</th>
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">What It Measures</th>
+                <th class="text-left p-3 border border-gray-200 dark:border-gray-700 font-semibold">Relative Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              {factors.map((row, i) => (
+                <tr class={i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 font-medium">{row.factor}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">{row.source}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">{row.what_it_measures}</td>
+                  <td class="p-3 border border-gray-200 dark:border-gray-700">
+                    <span class={`inline-block px-2 py-0.5 rounded text-xs font-medium ${row.weight.startsWith('Very') ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : row.weight.startsWith('High') ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'}`}>{row.weight}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Weight guidance for a typical household. Adjust based on personal circumstances: remote workers weight job market lower; retirees weight climate and healthcare higher.</p>
+      </section>
+
+      <section>
+        <h2>Step 1 — Calculate Real Purchasing Power</h2>
+        <p>Before anything else, compute purchasing power. This is the most important number in any city comparison. The formula:</p>
+        <p class="font-mono text-sm bg-gray-100 dark:bg-gray-800 p-3 rounded">Real purchasing power = Nominal income ÷ (RPP ÷ 100)</p>
+        <p>Example: You earn $85,000 and are considering three cities:</p>
+        <ul>
+          <li><strong>Austin, TX</strong> — RPP ~105. Real purchasing power: $85,000 ÷ 1.05 = <strong>$80,952</strong></li>
+          <li><strong>Phoenix, AZ</strong> — RPP ~98. Real purchasing power: $85,000 ÷ 0.98 = <strong>$86,735</strong></li>
+          <li><strong>Columbus, OH</strong> — RPP ~91. Real purchasing power: $85,000 ÷ 0.91 = <strong>$93,407</strong></li>
+        </ul>
+        <p>Same salary, same person — but Columbus delivers 15% more real purchasing power than Austin. That gap compounds significantly over a career. Use <a href="/metros/" class="text-indigo-600 dark:text-indigo-400 hover:underline">metro pages</a> to look up RPP for any metro.</p>
+      </section>
+
+      <section>
+        <h2>Step 2 — Set Hard Filters</h2>
+        <p>Hard filters eliminate metros before you invest time in analysis. Common filter thresholds:</p>
+        <ul>
+          <li><strong>Housing:</strong> Eliminate metros where median 2BR rent exceeds 35% of your gross monthly income.</li>
+          <li><strong>Crime:</strong> Eliminate metros where violent crime rate exceeds 600 per 100K (roughly 1.5x national average).</li>
+          <li><strong>Climate:</strong> Eliminate metros where average January low falls below your cold tolerance, or July high above your heat tolerance.</li>
+          <li><strong>Jobs:</strong> For non-remote workers, eliminate metros without employers in your field — check BLS employment concentration by occupation.</li>
+        </ul>
+        <p>Use <a href="/rankings/" class="text-indigo-600 dark:text-indigo-400 hover:underline">PlainCompare rankings</a> to quickly identify which metros clear each threshold. Filter aggressively — you can always relax a filter if too few metros remain.</p>
+      </section>
+
+      <section>
+        <h2>Step 3 — Score Your Shortlist</h2>
+        <p>With hard filters applied, you should have 10-30 metros remaining. Now score each on a 1-5 scale for each dimension, weighted by personal importance. A simple scoring grid works:</p>
+        <ol>
+          <li>List your top 10 candidate metros across columns.</li>
+          <li>List the 8 factors down rows.</li>
+          <li>Assign a 1-5 score for each cell (5 = best for you).</li>
+          <li>Multiply each score by your personal weight (1-5).</li>
+          <li>Sum the weighted scores per metro.</li>
+        </ol>
+        <p>The top 3-5 scorers become your finalist list for deeper research. Use <a href="/compare/" class="text-indigo-600 dark:text-indigo-400 hover:underline">side-by-side comparisons</a> to examine finalists dimension by dimension without manual data collection.</p>
+      </section>
+
+      <section>
+        <h2>Step 4 — Research Neighborhoods Within Finalists</h2>
+        <p>Metro-level data is perfect for narrowing the field but too coarse for final decisions. A metro's average crime rate may be acceptable, but a specific neighborhood could be significantly higher or lower. Once you have 3-5 finalist metros:</p>
+        <ul>
+          <li>Research neighborhood-level crime data through local police department portals.</li>
+          <li>Check school ratings at the district and individual school level (GreatSchools, NCES school finder).</li>
+          <li>Walk or drive through target neighborhoods using Google Street View for initial screening.</li>
+          <li>Check commute time from candidate neighborhoods to your likely workplace using Google Maps at peak hours.</li>
+          <li>Research local employer concentration — LinkedIn and Glassdoor show job density by city.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Step 5 — Visit Before Committing</h2>
+        <p>Data eliminates bad options. Experience confirms good ones. Before signing a lease or making an offer, spend 2-3 days in each finalist city. Prioritize during your visit:</p>
+        <ul>
+          <li>Drive your likely commute route during rush hour — traffic patterns are invisible in data.</li>
+          <li>Visit grocery stores, gyms, and restaurants in target neighborhoods to gauge cost and culture.</li>
+          <li>Spend time in the neighborhoods you are considering at different times of day and on a weekend.</li>
+          <li>Attend a local event, visit a park, explore the downtown — assess whether the city's energy fits your lifestyle.</li>
+          <li>If possible, meet people who live there. Ask what they genuinely dislike — locals give honest answers that no dataset can.</li>
+        </ul>
+        <p>The best relocation decisions combine rigorous data screening with a boots-on-the-ground reality check. No spreadsheet captures whether you will feel at home.</p>
+      </section>
+
+      <section>
+        <h2>Remote Work Changes the Calculus</h2>
+        <p>For fully remote workers, the job market dimension drops from "High" to near-zero weight, and cost of living becomes the dominant factor. Remote workers can unlock metros that would be inaccessible for in-person workers — college towns with excellent quality of life, Sun Belt metros with high growth and moderate cost, or smaller Midwest cities with exceptional purchasing power. If your income is decoupled from geography, optimize relentlessly for purchasing power, climate preference, and quality of life. The financial advantage over 10 years can compound to hundreds of thousands of dollars in savings.</p>
+      </section>
+
+      <section>
+        <h2>Frequently Asked Questions</h2>
+        <div class="not-prose space-y-3">
+          {faqItems.map(item => (
+            <details class="group border border-gray-200 dark:border-gray-700 rounded-lg">
+              <summary class="cursor-pointer px-4 py-3 font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800">{item.q}</summary>
+              <p class="px-4 pb-4 text-gray-600 dark:text-gray-400 leading-relaxed">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section class="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h2 class="text-lg font-semibold mb-2">Sources</h2>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <li>Bureau of Economic Analysis (BEA) — Regional Price Parities</li>
+          <li>U.S. Department of Housing and Urban Development (HUD) — Fair Market Rents</li>
+          <li>FBI Uniform Crime Reporting (UCR) — Crime rates per 100K</li>
+          <li>Bureau of Labor Statistics (BLS) — OEWS occupational employment and wages</li>
+          <li>National Center for Education Statistics (NCES) — School data</li>
+          <li>NOAA Climate Normals 1991–2020</li>
+          <li>EPA Air Quality System (AQS)</li>
+          <li>CDC PLACES — community health indicators</li>
+        </ul>
+      </section>
+
+      <p class="text-xs italic text-gray-500 border-t border-gray-200 dark:border-gray-700 pt-4 mt-8">This content is for informational purposes only. Relocation is a complex personal decision involving many factors beyond statistical data.</p>
+    </div>
+  </article>
+
+  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faqItems.map(item => ({ "@type": "Question", "name": item.q, "acceptedAnswer": { "@type": "Answer", "text": item.a } })) })} />
+</Base>
