@@ -23,11 +23,9 @@ services:
       - DATABASE_ENVIRO_PATH=/data/enviro.db
       - HOST=0.0.0.0
       - PORT=4321
-      - CACHE_ENTRIES=5000
       - WORKERS=1
       - WORKERS_MAX=4
       - MGMT_PORT=4322
-      - MAX_BOT_CONCURRENT=25
     networks:
       - portals
     mem_limit: 384m

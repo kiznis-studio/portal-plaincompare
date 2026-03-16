@@ -181,14 +181,16 @@ function warmSitemaps(): void {
 }
 warmSitemaps();
 
-// --- Compressed LRU response cache ---
+// --- Compressed LRU response cache (disabled in cluster mode — primary handles caching) ---
 interface CacheEntry { compressed: Buffer; contentType: string; cacheControl: string; hits: number; }
+const WORKER_CACHE_ENABLED = process.env.WORKER_RESPONSE_CACHE !== '0';
 const responseCache = new Map<string, CacheEntry>();
-const MAX_CACHE = parseInt(process.env.CACHE_ENTRIES || '5000', 10);
+const MAX_CACHE = WORKER_CACHE_ENABLED ? parseInt(process.env.CACHE_ENTRIES || '5000', 10) : 0;
 let totalHits = 0;
 let totalMisses = 0;
 
 function getCached(key: string): Response | null {
+  if (!WORKER_CACHE_ENABLED) return null;
   const entry = responseCache.get(key);
   if (!entry) { totalMisses++; return null; }
   responseCache.delete(key);
@@ -201,6 +203,7 @@ function getCached(key: string): Response | null {
 }
 
 function setCache(key: string, body: string, contentType: string, cacheControl: string) {
+  if (!WORKER_CACHE_ENABLED) return;
   if (!body || body.length < 50 || body.charCodeAt(0) !== 60) return;
   if (responseCache.has(key)) responseCache.delete(key);
   if (responseCache.size >= MAX_CACHE) {
@@ -216,6 +219,7 @@ function getCacheStats() {
   top.sort((a, b) => b.hits - a.hits);
   const total = totalHits + totalMisses;
   return {
+    enabled: WORKER_CACHE_ENABLED,
     size: responseCache.size, maxSize: MAX_CACHE,
     totalHits, totalMisses,
     hitRate: total > 0 ? Math.round(totalHits / total * 1000) / 1000 : 0,
