@@ -83,8 +83,7 @@ function startBackgroundWarming(): void {
   if (Object.keys(env).length === 0) { cacheWarmed = true; return; }
   (async () => {
     try {
-      const primary = env.DB || Object.values(env)[0]!;
-      await (warmQueryCache as any)(primary, env);
+      await warmQueryCache(env);
       cacheWarmedAt = new Date().toISOString();
     } catch (err) {
       console.error('[cache] Warming failed:', err);
