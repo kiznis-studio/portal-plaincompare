@@ -2,7 +2,7 @@
 User-agent: *
 Allow: /
 
-# Sitemap: https://plaincompare.com/sitemap-index.xml
+Sitemap: https://plaincompare.com/sitemap-index.xml
 
 # Search Engine Crawlers
 User-agent: Googlebot
