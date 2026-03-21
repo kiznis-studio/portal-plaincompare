@@ -155,23 +155,21 @@ export async function getMetroRent(db: D1Database, cbsa: string): Promise<RentDa
   return row;
 }
 
-export function getStateRent(db: D1Database, stateAbbr: string): Promise<RentData | null> {
-  return cached(`stateRent:${stateAbbr}`, async () => {
-    const row = await db.prepare(`
-      SELECT CAST(AVG(fc.br0) AS INTEGER) as br0,
-             CAST(AVG(fc.br1) AS INTEGER) as br1,
-             CAST(AVG(fc.br2) AS INTEGER) as br2,
-             CAST(AVG(fc.br3) AS INTEGER) as br3,
-             CAST(AVG(fc.br4) AS INTEGER) as br4,
-             fc.year
-      FROM fmr_county fc
-      JOIN counties c ON fc.fips = c.fips
-      JOIN states s ON c.state_code = s.state_code
-      WHERE s.state_abbr = ? AND fc.year = (SELECT MAX(year) FROM fmr_county)
-      GROUP BY s.state_abbr
-    `).bind(stateAbbr).first<RentData>();
-    return row;
-  });
+export async function getStateRent(db: D1Database, stateAbbr: string): Promise<RentData | null> {
+  const row = await db.prepare(`
+    SELECT CAST(AVG(fc.br0) AS INTEGER) as br0,
+           CAST(AVG(fc.br1) AS INTEGER) as br1,
+           CAST(AVG(fc.br2) AS INTEGER) as br2,
+           CAST(AVG(fc.br3) AS INTEGER) as br3,
+           CAST(AVG(fc.br4) AS INTEGER) as br4,
+           fc.year
+    FROM fmr_county fc
+    JOIN counties c ON fc.fips = c.fips
+    JOIN states s ON c.state_code = s.state_code
+    WHERE s.state_abbr = ? AND fc.year = (SELECT MAX(year) FROM fmr_county)
+    GROUP BY s.state_abbr
+  `).bind(stateAbbr).first<RentData>();
+  return row;
 }
 
 // ---- Crime (PlainCrime DB — state level only) ----
@@ -203,94 +201,88 @@ export async function getAllStateCrime(db: D1Database): Promise<(CrimeData & { s
 
 // ---- Wages (WageDex DB) ----
 
-export function getMetroWages(db: D1Database, wagedexArea: string): Promise<WageData | null> {
-  return cached(`metroWages:${wagedexArea}`, async () => {
-    const overallRow = await db.prepare(`
-      SELECT CAST(SUM(tot_emp) AS INTEGER) as total_employment,
-             CAST(AVG(a_median) AS INTEGER) as median_salary,
-             CAST(AVG(a_mean) AS INTEGER) as mean_salary
-      FROM metro_wages WHERE area_code = ? AND a_median IS NOT NULL AND a_median > 0
-    `).bind(wagedexArea).first<{ total_employment: number; median_salary: number; mean_salary: number }>();
+export async function getMetroWages(db: D1Database, wagedexArea: string): Promise<WageData | null> {
+  const overallRow = await db.prepare(`
+    SELECT CAST(SUM(tot_emp) AS INTEGER) as total_employment,
+           CAST(AVG(a_median) AS INTEGER) as median_salary,
+           CAST(AVG(a_mean) AS INTEGER) as mean_salary
+    FROM metro_wages WHERE area_code = ? AND a_median IS NOT NULL AND a_median > 0
+  `).bind(wagedexArea).first<{ total_employment: number; median_salary: number; mean_salary: number }>();
 
-    if (!overallRow || !overallRow.total_employment) return null;
+  if (!overallRow || !overallRow.total_employment) return null;
 
-    const { results: topOcc } = await db.prepare(`
-      SELECT o.occ_title as title, mw.a_median as median
-      FROM metro_wages mw
-      JOIN occupations o ON mw.occ_code = o.occ_code
-      WHERE mw.area_code = ? AND mw.a_median IS NOT NULL AND mw.tot_emp IS NOT NULL
-      ORDER BY mw.tot_emp DESC LIMIT 5
-    `).bind(wagedexArea).all<{ title: string; median: number }>();
+  const { results: topOcc } = await db.prepare(`
+    SELECT o.occ_title as title, mw.a_median as median
+    FROM metro_wages mw
+    JOIN occupations o ON mw.occ_code = o.occ_code
+    WHERE mw.area_code = ? AND mw.a_median IS NOT NULL AND mw.tot_emp IS NOT NULL
+    ORDER BY mw.tot_emp DESC LIMIT 5
+  `).bind(wagedexArea).all<{ title: string; median: number }>();
 
-    return {
-      median_salary: overallRow.median_salary,
-      mean_salary: overallRow.mean_salary,
-      total_employment: overallRow.total_employment,
-      top_occupations: topOcc,
-    };
-  });
+  return {
+    median_salary: overallRow.median_salary,
+    mean_salary: overallRow.mean_salary,
+    total_employment: overallRow.total_employment,
+    top_occupations: topOcc,
+  };
 }
 
-export function getStateWages(db: D1Database, stateAbbr: string): Promise<WageData | null> {
-  return cached(`stateWages:${stateAbbr}`, async () => {
-    const area = await db.prepare(
-      "SELECT area_code FROM areas WHERE area_type='state' AND slug = ?"
+export async function getStateWages(db: D1Database, stateAbbr: string): Promise<WageData | null> {
+  const area = await db.prepare(
+    "SELECT area_code FROM areas WHERE area_type='state' AND slug = ?"
+  ).bind(stateAbbr.toLowerCase()).first<{ area_code: string }>();
+
+  let areaCode = area?.area_code;
+  if (!areaCode) {
+    const areaBySlug = await db.prepare(
+      "SELECT area_code FROM areas WHERE area_type='state' AND state_slug = ?"
     ).bind(stateAbbr.toLowerCase()).first<{ area_code: string }>();
+    areaCode = areaBySlug?.area_code;
+  }
+  if (!areaCode) return null;
 
-    let areaCode = area?.area_code;
-    if (!areaCode) {
-      const areaBySlug = await db.prepare(
-        "SELECT area_code FROM areas WHERE area_type='state' AND state_slug = ?"
-      ).bind(stateAbbr.toLowerCase()).first<{ area_code: string }>();
-      areaCode = areaBySlug?.area_code;
-    }
-    if (!areaCode) return null;
+  const overallRow = await db.prepare(`
+    SELECT CAST(SUM(tot_emp) AS INTEGER) as total_employment,
+           CAST(AVG(a_median) AS INTEGER) as median_salary,
+           CAST(AVG(a_mean) AS INTEGER) as mean_salary
+    FROM state_wages WHERE area_code = ? AND a_median IS NOT NULL AND a_median > 0
+  `).bind(areaCode).first<{ total_employment: number; median_salary: number; mean_salary: number }>();
 
-    const overallRow = await db.prepare(`
-      SELECT CAST(SUM(tot_emp) AS INTEGER) as total_employment,
-             CAST(AVG(a_median) AS INTEGER) as median_salary,
-             CAST(AVG(a_mean) AS INTEGER) as mean_salary
-      FROM state_wages WHERE area_code = ? AND a_median IS NOT NULL AND a_median > 0
-    `).bind(areaCode).first<{ total_employment: number; median_salary: number; mean_salary: number }>();
+  if (!overallRow || !overallRow.total_employment) return null;
 
-    if (!overallRow || !overallRow.total_employment) return null;
+  const { results: topOcc } = await db.prepare(`
+    SELECT o.occ_title as title, sw.a_median as median
+    FROM state_wages sw
+    JOIN occupations o ON sw.occ_code = o.occ_code
+    WHERE sw.area_code = ? AND sw.a_median IS NOT NULL AND sw.tot_emp IS NOT NULL
+    ORDER BY sw.tot_emp DESC LIMIT 5
+  `).bind(areaCode).all<{ title: string; median: number }>();
 
-    const { results: topOcc } = await db.prepare(`
-      SELECT o.occ_title as title, sw.a_median as median
-      FROM state_wages sw
-      JOIN occupations o ON sw.occ_code = o.occ_code
-      WHERE sw.area_code = ? AND sw.a_median IS NOT NULL AND sw.tot_emp IS NOT NULL
-      ORDER BY sw.tot_emp DESC LIMIT 5
-    `).bind(areaCode).all<{ title: string; median: number }>();
-
-    return {
-      median_salary: overallRow.median_salary,
-      mean_salary: overallRow.mean_salary,
-      total_employment: overallRow.total_employment,
-      top_occupations: topOcc,
-    };
-  });
+  return {
+    median_salary: overallRow.median_salary,
+    mean_salary: overallRow.mean_salary,
+    total_employment: overallRow.total_employment,
+    top_occupations: topOcc,
+  };
 }
 
 // ---- Schools (PlainSchools DB — state level only) ----
 
-export function getStateSchools(db: D1Database, stateAbbr: string): Promise<SchoolsData | null> {
-  return cached(`stateSchools:${stateAbbr}`, async () => {
-    const stateFips = await db.prepare(
-      'SELECT state_fips FROM states WHERE state_abbr = ?'
-    ).bind(stateAbbr).first<{ state_fips: string }>();
-    if (!stateFips) return null;
+export async function getStateSchools(db: D1Database, stateAbbr: string): Promise<SchoolsData | null> {
+  const stateFips = await db.prepare(
+    'SELECT state_fips FROM states WHERE state_abbr = ?'
+  ).bind(stateAbbr).first<{ state_fips: string }>();
+  if (!stateFips) return null;
 
-    const row = await db.prepare(`
-      SELECT COUNT(*) as num_schools,
-             CAST(SUM(enrollment) AS INTEGER) as total_enrollment,
-             ROUND(AVG(student_teacher_ratio), 1) as avg_student_teacher_ratio,
-             ROUND(100.0 * SUM(CASE WHEN charter = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as charter_pct,
-             ROUND(100.0 * SUM(CASE WHEN title_i = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as title_i_pct
-      FROM schools WHERE state_fips = ?
-    `).bind(stateFips.state_fips).first<SchoolsData>();
-    return row;
-  });
+  const row = await db.prepare(`
+    SELECT COUNT(*) as num_schools,
+           CAST(SUM(enrollment) AS INTEGER) as total_enrollment,
+           ROUND(AVG(student_teacher_ratio), 1) as avg_student_teacher_ratio,
+           ROUND(100.0 * SUM(CASE WHEN charter = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as charter_pct,
+           ROUND(100.0 * SUM(CASE WHEN title_i = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) as title_i_pct
+    FROM schools WHERE state_fips = ?
+  `).bind(stateFips.state_fips).first<SchoolsData>();
+  return row;
 }
 
 export async function getAllStateSchools(db: D1Database): Promise<(SchoolsData & { state_abbr: string; state_name: string; slug: string })[]> {
@@ -313,17 +305,15 @@ export async function getAllStateSchools(db: D1Database): Promise<(SchoolsData &
 
 // ---- Childcare (PlainChildcare DB — state level) ----
 
-export function getStateChildcare(db: D1Database, abbr: string): Promise<ChildcareData | null> {
-  return cached(`stateChildcare:${abbr}`, async () => {
-    const row = await db.prepare(`
-      SELECT avg_center_infant as center_infant, avg_center_toddler as center_toddler,
-             avg_center_preschool as center_preschool,
-             min_center_infant as center_school_age,
-             0 as family_infant, 0 as family_toddler
-      FROM states WHERE abbr = ?
-    `).bind(abbr).first<ChildcareData>();
-    return row;
-  });
+export async function getStateChildcare(db: D1Database, abbr: string): Promise<ChildcareData | null> {
+  const row = await db.prepare(`
+    SELECT avg_center_infant as center_infant, avg_center_toddler as center_toddler,
+           avg_center_preschool as center_preschool,
+           min_center_infant as center_school_age,
+           0 as family_infant, 0 as family_toddler
+    FROM states WHERE abbr = ?
+  `).bind(abbr).first<ChildcareData>();
+  return row;
 }
 
 export async function getAllStateChildcare(db: D1Database): Promise<(ChildcareData & { abbr: string; name: string; slug: string })[]> {
@@ -340,14 +330,12 @@ export async function getAllStateChildcare(db: D1Database): Promise<(ChildcareDa
 
 // ---- Environment (PlainEnviro DB — state level) ----
 
-export function getStateEnviro(db: D1Database, stateAbbr: string): Promise<EnviroData | null> {
-  return cached(`stateEnviro:${stateAbbr}`, async () => {
-    const row = await db.prepare(`
-      SELECT num_facilities, num_water_systems, num_superfund_sites, num_violations
-      FROM states WHERE state_abbr = ?
-    `).bind(stateAbbr).first<EnviroData>();
-    return row;
-  });
+export async function getStateEnviro(db: D1Database, stateAbbr: string): Promise<EnviroData | null> {
+  const row = await db.prepare(`
+    SELECT num_facilities, num_water_systems, num_superfund_sites, num_violations
+    FROM states WHERE state_abbr = ?
+  `).bind(stateAbbr).first<EnviroData>();
+  return row;
 }
 
 export async function getAllStateEnviro(db: D1Database): Promise<(EnviroData & { state_abbr: string; state_name: string; slug: string })[]> {
@@ -461,12 +449,8 @@ export async function getLifeScore(db: D1Database, slug: string): Promise<LifeSc
 }
 
 export async function getTopLifeScores(db: D1Database, type: string, limit = 20): Promise<LifeScore[]> {
-  return cached(`getTopLifeScores:${type}:${limit}`, async () => {
-    const { results } = await db.prepare(
-      'SELECT * FROM life_scores WHERE type = ? ORDER BY composite_score DESC LIMIT ?'
-    ).bind(type, limit).all<LifeScore>();
-    return results;
-  });
+  const all = await getAllLifeScoreRankings(db, type);
+  return all.slice(0, limit);
 }
 
 export async function getAllLifeScoreRankings(db: D1Database, type: string): Promise<LifeScore[]> {
@@ -481,12 +465,10 @@ export async function getAllLifeScoreRankings(db: D1Database, type: string): Pro
 // ---- Life Score: Metros by state ----
 
 export async function getLifeScoresByState(db: D1Database, slug: string, stateAbbr: string, limit = 6): Promise<LifeScore[]> {
-  return cached(`getLifeScoresByState:${stateAbbr}:${slug}:${limit}`, async () => {
-    const all = await getAllLifeScoreRankings(db, 'metro');
-    return all
-      .filter(s => s.slug !== slug && s.name.includes(stateAbbr))
-      .slice(0, limit);
-  });
+  const all = await getAllLifeScoreRankings(db, 'metro');
+  return all
+    .filter(s => s.slug !== slug && s.name.includes(stateAbbr))
+    .slice(0, limit);
 }
 
 // ---- Life Score: Dimension strengths and weaknesses ----
@@ -524,26 +506,17 @@ export async function getStats(db: D1Database) {
 // Multi-DB: each function is called with the correct database binding.
 export async function warmQueryCache(env: Record<string, D1Database>): Promise<number> {
   const start = Date.now();
-  const stateCosts = await getAllStateCosts(env.DB_COST);
   await Promise.all([
     getAllMetros(env.DB),
+    getAllStateCosts(env.DB_COST),
     getAllMetroCosts(env.DB_COST),
     getAllStateCrime(env.DB_CRIME),
     getAllStateSchools(env.DB_SCHOOLS),
     getAllStateChildcare(env.DB_CHILDCARE),
     getAllStateEnviro(env.DB_ENVIRO),
     getStats(env.DB),
-    getTopLifeScores(env.DB, 'metro'),
-    getTopLifeScores(env.DB, 'state'),
     getAllLifeScoreRankings(env.DB, 'metro'),
     getAllLifeScoreRankings(env.DB, 'state'),
-    ...stateCosts.map(s => Promise.all([
-      getStateRent(env.DB_RENT, s.abbr),
-      getStateWages(env.DB_WAGE, s.abbr),
-      getStateSchools(env.DB_SCHOOLS, s.abbr),
-      getStateChildcare(env.DB_CHILDCARE, s.abbr),
-      getStateEnviro(env.DB_ENVIRO, s.abbr),
-    ])),
   ]);
   console.log(`[cache] Warmed ${queryCache.size} queries in ${Date.now() - start}ms`);
   return queryCache.size;
