@@ -1,5 +1,6 @@
 // PlainCompare cross-database query library
 // All functions accept D1Database bindings — NEVER at module scope
+import { persistToDisk, loadFromDisk, warmFromDisk } from './disk-cache';
 
 // --- Targeted query cache (permanent, for expensive bulk/aggregate queries) ---
 const queryCache = new Map<string, any>();
@@ -27,6 +28,13 @@ if (IS_CLUSTER_WORKER) {
 
 function cached<T>(key: string, compute: () => Promise<T>): Promise<T> {
   if (queryCache.has(key)) return Promise.resolve(queryCache.get(key) as T);
+
+  // T19: Disk fallback — survives process restart within container
+  const fromDisk = loadFromDisk<T>(key);
+  if (fromDisk !== null) {
+    queryCache.set(key, fromDisk);
+    return Promise.resolve(fromDisk);
+  }
 
   if (IS_CLUSTER_WORKER && process.send) {
     return new Promise<T>((resolve) => {
