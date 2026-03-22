@@ -97,6 +97,20 @@ const faqSchema = JSON.stringify({
     <h1 class="text-2xl md:text-3xl font-bold mb-2">{metroA.name} vs {metroB.name}</h1>
     <p class="text-[var(--color-text-secondary)] mb-8">Side-by-side comparison across cost of living, rent, wages, crime, schools, childcare, and environment.</p>
 
+    <!-- Direct Answer Block -->
+    <p class="text-base text-[var(--color-text-secondary)] leading-relaxed mb-8">
+      {nameA} and {nameB} differ across seven dimensions of livability.
+      {dataA.cost && dataB.cost && dataA.cost.rpp_all != null && dataB.cost.rpp_all != null
+        ? ` ${nameA} has a cost-of-living index of ${dataA.cost.rpp_all.toFixed(1)} vs ${nameB}'s ${dataB.cost.rpp_all.toFixed(1)} (national average = 100).`
+        : ''}
+      {dataA.wages && dataB.wages && dataA.wages.median_salary != null && dataB.wages.median_salary != null
+        ? ` Median salaries are ${formatMoney(dataA.wages.median_salary)} in ${nameA} and ${formatMoney(dataB.wages.median_salary)} in ${nameB}.`
+        : ''}
+      {dataA.rent && dataB.rent && dataA.rent.br2 != null && dataB.rent.br2 != null
+        ? ` A 2-bedroom averages ${formatMoney(dataA.rent.br2)}/mo vs ${formatMoney(dataB.rent.br2)}/mo.`
+        : ''}
+    </p>
+
     <!-- Cost of Living -->
     {dataA.cost && dataB.cost && (
       <div class="mb-8">
