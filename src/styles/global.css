@@ -30,6 +30,15 @@
   --color-primary-dark: #0d9488;
 }
 
+/* Smooth dark/light mode transitions — prevents jarring snap on toggle. */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body, header, footer, .card, nav, main, section {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
