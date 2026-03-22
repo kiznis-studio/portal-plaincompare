@@ -29,6 +29,7 @@ COPY --from=builder --chown=app:app /app/package.json ./
 # Copy runtime assets (fonts for OG images, etc.) — Astro SSR reads these at runtime
 COPY --from=builder --chown=app:app /app/src/assets ./src/assets
 COPY --chown=app:app cluster-entry.mjs ./
+COPY --chown=app:app warmer.mjs ./
 COPY --chown=app:app memory-budget.mjs ./
 USER app
 ENV HOST=0.0.0.0
