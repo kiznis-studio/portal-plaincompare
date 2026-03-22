@@ -224,4 +224,51 @@ const categories = [
     <a href="/guides/" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">View all guides &rarr;</a>
   </div>
 </section>
+
+  <!-- FAQ Section -->
+  <section class="max-w-4xl mx-auto px-4 py-12">
+    <h2 class="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
+    <div class="space-y-3">
+      <details class="group border border-[var(--color-border)] rounded-lg">
+        <summary class="flex items-center justify-between p-4 cursor-pointer font-medium">
+          What is PlainCompare?
+          <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-4 pb-4 text-[var(--color-muted)] text-sm leading-relaxed">PlainCompare is a cross-portal city comparison tool that lets you compare U.S. metro areas across multiple dimensions — cost of living, crime rates, school quality, wages, rent, and more — using data from federal sources.</div>
+      </details>
+      <details class="group border border-[var(--color-border)] rounded-lg">
+        <summary class="flex items-center justify-between p-4 cursor-pointer font-medium">
+          Where does the comparison data come from?
+          <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-4 pb-4 text-[var(--color-muted)] text-sm leading-relaxed">PlainCompare aggregates data from multiple federal agencies including the BEA (cost of living), FBI (crime), NCES (schools), BLS (wages), HUD (rent), and EPA (environment). Each data point links back to its source portal for deeper analysis.</div>
+      </details>
+      <details class="group border border-[var(--color-border)] rounded-lg">
+        <summary class="flex items-center justify-between p-4 cursor-pointer font-medium">
+          How many metros can I compare?
+          <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-4 pb-4 text-[var(--color-muted)] text-sm leading-relaxed">PlainCompare covers 384 metropolitan statistical areas (MSAs) across the United States. You can compare any two metros side by side or browse rankings across all metros.</div>
+      </details>
+      <details class="group border border-[var(--color-border)] rounded-lg">
+        <summary class="flex items-center justify-between p-4 cursor-pointer font-medium">
+          Is PlainCompare free?
+          <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-4 pb-4 text-[var(--color-muted)] text-sm leading-relaxed">Yes, PlainCompare is completely free. No account or signup required. All comparison data comes from public federal sources and is presented without any paywall.</div>
+      </details>
+    </div>
+  </section>
+
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What is PlainCompare?", "acceptedAnswer": { "@type": "Answer", "text": "PlainCompare is a cross-portal city comparison tool that lets you compare U.S. metro areas across multiple dimensions — cost of living, crime rates, school quality, wages, rent, and more — using data from federal sources." } },
+      { "@type": "Question", "name": "Where does the comparison data come from?", "acceptedAnswer": { "@type": "Answer", "text": "PlainCompare aggregates data from multiple federal agencies including the BEA (cost of living), FBI (crime), NCES (schools), BLS (wages), HUD (rent), and EPA (environment). Each data point links back to its source portal for deeper analysis." } },
+      { "@type": "Question", "name": "How many metros can I compare?", "acceptedAnswer": { "@type": "Answer", "text": "PlainCompare covers 384 metropolitan statistical areas (MSAs) across the United States. You can compare any two metros side by side or browse rankings across all metros." } },
+      { "@type": "Question", "name": "Is PlainCompare free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, PlainCompare is completely free. No account or signup required. All comparison data comes from public federal sources and is presented without any paywall." } }
+    ]
+  })} />
+
 </Base>
